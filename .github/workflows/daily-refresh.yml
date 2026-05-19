@@ -13,12 +13,14 @@ jobs:
         env:
           FC26_REFRESH_ENDPOINT: ${{ secrets.FC26_REFRESH_ENDPOINT }}
           FC26_REFRESH_TOKEN: ${{ secrets.FC26_REFRESH_TOKEN }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           if [ -z "$FC26_REFRESH_ENDPOINT" ]; then
             echo "FC26_REFRESH_ENDPOINT is not set."
             exit 1
           fi
           curl -sS -X POST "$FC26_REFRESH_ENDPOINT" \
-            -H "Authorization: Bearer $FC26_REFRESH_TOKEN" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "x-refresh-token: $FC26_REFRESH_TOKEN" \
             -H "Content-Type: application/json" \
             --data '{"source":"github-actions"}'

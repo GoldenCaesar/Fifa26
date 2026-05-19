@@ -88,24 +88,29 @@ https://pztzduvkbnrutgotdown.supabase.co/functions/v1/daily-refresh
 
 Go to your GitHub repo → Settings → Secrets and variables → Actions
 
-Add these two secrets:
+Add these **three** secrets:
 
 1. **FC26_REFRESH_ENDPOINT**  
    Value: `https://pztzduvkbnrutgotdown.supabase.co/functions/v1/daily-refresh`
 
 2. **FC26_REFRESH_TOKEN**  
-   Value: The same token you generated in Step 5
+   Value: The same token you generated in Step 5 (e.g., `GvKLoVU1ef3t8zExISbAMpr4mk2iZ9HO`)
+
+3. **SUPABASE_ANON_KEY**  
+   Value: Your Supabase anon key (the long one starting with `eyJ`)
 
 ## Step 8: Test the Edge Function
 
 Test manually first:
 
 ```powershell
-$TOKEN = "YOUR_FC26_REFRESH_TOKEN_HERE"
+$TOKEN = "GvKLoVU1ef3t8zExISbAMpr4mk2iZ9HO"
+$ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6dHpkdXZrYm5ydXRnb3Rkb3duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTEzNDgsImV4cCI6MjA5NDcyNzM0OH0.j1AVRwQbYCf0JryknVtR7NmA2S88nIXhhyfJbRCK01s"
 $URL = "https://pztzduvkbnrutgotdown.supabase.co/functions/v1/daily-refresh"
 
 Invoke-RestMethod -Uri $URL -Method Post -Headers @{
-  "Authorization" = "Bearer $TOKEN"
+  "Authorization" = "Bearer $ANON_KEY"
+  "x-refresh-token" = $TOKEN
   "Content-Type" = "application/json"
 } -Body '{"source":"manual-test"}'
 ```

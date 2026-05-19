@@ -16,12 +16,11 @@ const TEAM_POOL = [
 ];
 
 serve(async (req) => {
-  // Verify auth token
-  const authHeader = req.headers.get("Authorization");
-  const token = authHeader?.replace("Bearer ", "");
+  // Verify custom refresh token (using custom header to bypass Supabase JWT validation)
+  const token = req.headers.get("x-refresh-token");
   
   if (token !== REFRESH_TOKEN) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ error: "Unauthorized", received: token ? "token provided" : "no token" }), {
       status: 401,
       headers: { "Content-Type": "application/json" }
     });
