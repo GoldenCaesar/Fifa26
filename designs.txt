@@ -1,0 +1,2040 @@
+<!-- Design System -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Family Clash 2026 - Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.2); }
+            50% { box-shadow: 0 0 50px rgba(255, 0, 255, 0.6); }
+        }
+        @keyframes logo-shimmer {
+            0% { filter: drop-shadow(0 0 10px rgba(255, 0, 255, 0.4)); }
+            50% { filter: drop-shadow(0 0 25px rgba(255, 0, 255, 0.8)); }
+            100% { filter: drop-shadow(0 0 10px rgba(255, 0, 255, 0.4)); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+        .logo-glow { animation: logo-shimmer 3s ease-in-out infinite; }
+        
+        .glass-card {
+            background: rgba(32, 31, 31, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Custom Transition Simulation */
+        .login-transition-pre {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .logo-explosion-active {
+            transform: scale(20);
+            opacity: 0;
+            filter: blur(10px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-container": "#510051",
+                      "inverse-surface": "#e5e2e1",
+                      "error-container": "#93000a",
+                      "primary-fixed": "#ffd7f5",
+                      "surface-container-highest": "#353534",
+                      "secondary": "#d7ffc5",
+                      "secondary-container": "#2ff801",
+                      "tertiary-container": "#c8a900",
+                      "on-tertiary-fixed-variant": "#544600",
+                      "secondary-fixed-dim": "#2ae500",
+                      "primary-fixed-dim": "#ffabf3",
+                      "tertiary-fixed-dim": "#e9c400",
+                      "surface-container": "#201f1f",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-secondary": "#053900",
+                      "error": "#ffb4ab",
+                      "on-tertiary-fixed": "#221b00",
+                      "on-secondary-container": "#0f6d00",
+                      "on-background": "#e5e2e1",
+                      "on-secondary-fixed-variant": "#095300",
+                      "background": "#131313",
+                      "surface-bright": "#393939",
+                      "inverse-primary": "#a900a9",
+                      "secondary-fixed": "#79ff5b",
+                      "surface-tint": "#ffabf3",
+                      "outline": "#a4899d",
+                      "on-error": "#690005",
+                      "on-primary-fixed-variant": "#810081",
+                      "surface": "#131313",
+                      "on-primary-fixed": "#380038",
+                      "surface-container-high": "#2a2a2a",
+                      "on-tertiary": "#3a3000",
+                      "surface-dim": "#131313",
+                      "on-error-container": "#ffdad6",
+                      "primary": "#ffabf3",
+                      "tertiary": "#e9c400",
+                      "on-tertiary-container": "#4b3e00",
+                      "on-surface-variant": "#dcbed4",
+                      "tertiary-fixed": "#ffe16d",
+                      "primary-container": "#ff00ff",
+                      "outline-variant": "#564052",
+                      "inverse-on-surface": "#313030",
+                      "on-secondary-fixed": "#022100",
+                      "on-surface": "#e5e2e1",
+                      "surface-container-low": "#1c1b1b",
+                      "on-primary": "#5b005b",
+                      "surface-variant": "#353534"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "stack-sm": "8px",
+                      "stack-lg": "24px",
+                      "gutter": "12px",
+                      "base": "4px",
+                      "stack-md": "16px",
+                      "margin-desktop": "32px"
+              },
+              "fontFamily": {
+                      "display-lg": ["Oswald"],
+                      "label-sm": ["Be Vietnam Pro"],
+                      "score-display": ["Oswald"],
+                      "label-md": ["Be Vietnam Pro"],
+                      "headline-lg": ["Oswald"],
+                      "body-lg": ["Be Vietnam Pro"],
+                      "headline-lg-mobile": ["Oswald"],
+                      "body-md": ["Be Vietnam Pro"]
+              },
+              "fontSize": {
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                      "score-display": ["40px", {"lineHeight": "40px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col overflow-hidden">
+<!-- Top App Bar (Suppressed but logically structure for brand) -->
+<header class="fixed top-0 w-full z-50 flex justify-center items-center h-16 px-margin-mobile">
+<h1 class="font-display-lg text-headline-lg-mobile uppercase tracking-tighter text-primary/40">
+            Family Clash 2026
+        </h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-margin-mobile relative">
+<!-- Background Atmospheric Element -->
+<div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]"></div>
+</div>
+<!-- Centerpiece: Floating Football Logo -->
+<div class="relative z-10 mb-12 animate-float login-transition-pre" id="main-logo-container">
+<div class="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center">
+<div class="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-pulse-glow"></div>
+<img alt="Family Clash Logo" class="w-full h-full object-contain logo-glow relative z-20" data-alt="A stylized, futuristic soccer ball logo glowing with intense electric magenta neon lights. The ball is intricately designed with crystalline patterns and metallic textures, suspended in a dark, atmospheric void. Radiant magenta energy pulses from its core, casting sharp pink highlights on the surrounding charcoal black environment. The aesthetic is high-octane sports broadcasting mixed with a sleek, premium digital interface, evoking the excitement of a global 2026 tournament." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOb6PnsLFo25yQYruq8H9rv6FrcPIFdCZpNB25dip9N-jcSnlEEegMlz5C7JKLrnud8ScrV2GLi_nRRGFrSZ_PuSQdQgCKgz8_mBuSduTDv2KEjT1SFkd7BETs78U3dyQ31LF3jQIsNVeKFhNbVzxPscnyEjA8TvkeSr_YydN9EcEt7geZdyqkSzXg9ETEX6wNof4xNxdLfcgXU66vZWAdfB2kAdd1tOQKNNQBG_62udfelVMrdjIR40QljM89AIHlJr6KO5-A5F6b"/>
+</div>
+</div>
+<!-- Login Form Container -->
+<div class="w-full max-w-md space-y-stack-lg z-20 login-transition-pre" id="login-form">
+<div class="text-center space-y-base mb-stack-lg">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Welcome to the Pitch</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Step into the arena of champions.</p>
+</div>
+<!-- MD3 Outlined Text Field -->
+<div class="relative group">
+<input class="peer w-full h-16 px-4 bg-transparent border-2 border-outline-variant rounded-xl text-on-surface font-body-lg text-body-lg placeholder-transparent focus:border-primary focus:ring-0 transition-all duration-300" id="handle-input" name="handle" placeholder="Enter Your Name or Profile Handle" type="text"/>
+<label class="absolute left-4 -top-3 px-1 bg-background text-on-surface-variant font-label-md text-label-md transition-all peer-placeholder-shown:text-body-lg peer-placeholder-shown:top-4 peer-focus:-top-3 peer-focus:text-primary peer-focus:text-label-md group-hover:text-primary/70" for="handle-input">
+                    Enter Your Name or Profile Handle
+                </label>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant peer-focus:text-primary transition-colors">
+                    account_circle
+                </span>
+</div>
+<!-- Primary Action Button -->
+<button class="w-full h-16 bg-primary-container text-on-primary-container font-display-lg text-headline-lg uppercase rounded-xl shadow-[0_0_20px_rgba(255,0,255,0.4)] active:scale-95 transition-all duration-200 flex items-center justify-center gap-stack-sm group overflow-hidden relative" id="enter-button">
+<span class="relative z-10">Enter</span>
+<span class="material-symbols-outlined relative z-10 group-hover:translate-x-1 transition-transform">
+                    sports_soccer
+                </span>
+<div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+<!-- Secondary Links -->
+<div class="flex justify-between items-center px-base pt-stack-sm">
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">Forgot Handle?</button>
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">Support</button>
+</div>
+</div>
+</main>
+<!-- Footer Identity -->
+<footer class="h-12 flex items-center justify-center px-margin-mobile z-10 opacity-40">
+<p class="font-label-sm text-label-sm uppercase tracking-[0.2em]">Tournament Season 2026</p>
+</footer>
+<script>
+        document.getElementById('enter-button').addEventListener('click', function() {
+            const input = document.getElementById('handle-input');
+            const logo = document.getElementById('main-logo-container');
+            const form = document.getElementById('login-form');
+            
+            if(input.value.trim() === '') {
+                // Shake effect for empty input
+                form.classList.add('animate-pulse');
+                setTimeout(() => form.classList.remove('animate-pulse'), 500);
+                return;
+            }
+
+            // Simulate the "Logo Explosion" transition mentioned in the notes
+            logo.classList.add('logo-explosion-active');
+            form.style.opacity = '0';
+            form.style.transform = 'translateY(50px)';
+            
+            // In a real app, we would redirect here
+            console.log('Transitioning to dashboard for:', input.value);
+            
+            setTimeout(() => {
+                alert('Welcome to Family Clash 2026, ' + input.value + '! Preparing your stadium...');
+                location.reload(); // Reset for demo purposes
+            }, 800);
+        });
+
+        // Add focus effect sound logic placeholder
+        const inputField = document.getElementById('handle-input');
+        inputField.addEventListener('focus', () => {
+            // Subtle visual buzz
+            inputField.parentElement.classList.add('scale-[1.01]');
+        });
+        inputField.addEventListener('blur', () => {
+            inputField.parentElement.classList.remove('scale-[1.01]');
+        });
+
+        // Background parallax movement
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.pageX) / 50;
+            const y = (window.innerHeight / 2 - e.pageY) / 50;
+            document.getElementById('main-logo-container').style.transform = `translate(${x}px, ${y}px)`;
+        });
+    </script>
+</body></html>
+
+<!-- Login - Family Clash 2026 -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Family Clash 2026 - My Scorecard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-container": "#510051",
+                    "inverse-surface": "#e5e2e1",
+                    "error-container": "#93000a",
+                    "primary-fixed": "#ffd7f5",
+                    "surface-container-highest": "#353534",
+                    "secondary": "#d7ffc5",
+                    "secondary-container": "#2ff801",
+                    "tertiary-container": "#c8a900",
+                    "on-tertiary-fixed-variant": "#544600",
+                    "secondary-fixed-dim": "#2ae500",
+                    "primary-fixed-dim": "#ffabf3",
+                    "tertiary-fixed-dim": "#e9c400",
+                    "surface-container": "#201f1f",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-secondary": "#053900",
+                    "error": "#ffb4ab",
+                    "on-tertiary-fixed": "#221b00",
+                    "on-secondary-container": "#0f6d00",
+                    "on-background": "#e5e2e1",
+                    "on-secondary-fixed-variant": "#095300",
+                    "background": "#131313",
+                    "surface-bright": "#393939",
+                    "inverse-primary": "#a900a9",
+                    "secondary-fixed": "#79ff5b",
+                    "surface-tint": "#ffabf3",
+                    "outline": "#a4899d",
+                    "on-error": "#690005",
+                    "on-primary-fixed-variant": "#810081",
+                    "surface": "#131313",
+                    "on-primary-fixed": "#380038",
+                    "surface-container-high": "#2a2a2a",
+                    "on-tertiary": "#3a3000",
+                    "surface-dim": "#131313",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ffabf3",
+                    "tertiary": "#e9c400",
+                    "on-tertiary-container": "#4b3e00",
+                    "on-surface-variant": "#dcbed4",
+                    "tertiary-fixed": "#ffe16d",
+                    "primary-container": "#ff00ff",
+                    "outline-variant": "#564052",
+                    "inverse-on-surface": "#313030",
+                    "on-secondary-fixed": "#022100",
+                    "on-surface": "#e5e2e1",
+                    "surface-container-low": "#1c1b1b",
+                    "on-primary": "#5b005b",
+                    "surface-variant": "#353534"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "16px",
+                    "stack-sm": "8px",
+                    "stack-lg": "24px",
+                    "gutter": "12px",
+                    "base": "4px",
+                    "stack-md": "16px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Oswald"],
+                    "label-sm": ["Be Vietnam Pro"],
+                    "score-display": ["Oswald"],
+                    "label-md": ["Be Vietnam Pro"],
+                    "headline-lg": ["Oswald"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "headline-lg-mobile": ["Oswald"],
+                    "body-md": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "score-display": ["40px", {"lineHeight": "40px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .platinum-gradient {
+            background: linear-gradient(135deg, #E5E4E2 0%, #FFFFFF 50%, #71706E 100%);
+            position: relative;
+        }
+        .platinum-gradient::after {
+            content: ''; position: absolute; inset: 0; background: url('https://www.transparenttextures.com/patterns/p6-dark.png'); opacity: 0.05; pointer-events: none;
+        }
+        .bronze-gradient {
+            background: linear-gradient(135deg, #cd7f32 0%, #f5af19 50%, #804a00 100%);
+            position: relative;
+        }
+        .bronze-gradient::after {
+            content: ''; position: absolute; inset: 0; background: url('https://www.transparenttextures.com/patterns/p6-dark.png'); opacity: 0.05; pointer-events: none;
+        }
+        .pulse-magenta {
+            animation: pulse-magenta 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-magenta {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.2); }
+            50% { box-shadow: 0 0 40px rgba(255, 0, 255, 0.6); }
+        }
+        .score-glimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            background-size: 200% 100%;
+            animation: glimmer 3s infinite;
+        }
+        @keyframes glimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        body {
+            background-color: #121212;
+            color: #e5e2e1;
+            margin-bottom: 80px; /* Space for BottomNav */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-white/10 shadow-[0_0_20px_rgba(255,0,255,0.15)] h-16 flex justify-between items-center px-margin-mobile">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">sports_soccer</span>
+<h1 class="font-display-lg text-headline-lg-mobile uppercase tracking-tighter text-primary">Family Clash 2026</h1>
+</div>
+<div class="active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</div>
+</header>
+<main class="pt-24 px-margin-mobile max-w-screen-md mx-auto">
+<!-- Hero: Massive Pulsing Score -->
+<section class="relative mb-stack-lg text-center py-stack-lg rounded-xl bg-surface-container overflow-hidden border border-white/10">
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+<div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent"></div>
+</div>
+<p class="font-label-md text-label-md text-primary tracking-widest uppercase mb-base">Live Standing</p>
+<div class="relative inline-block">
+<h2 class="font-display-lg text-[56px] leading-tight text-white mb-2 pulse-magenta rounded-full px-8 py-2">
+                    YOUR TOTAL SCORE
+                </h2>
+<div class="font-display-lg text-[72px] leading-none text-primary-container drop-shadow-[0_0_15px_rgba(255,0,255,0.8)]">
+                    2,450
+                </div>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-stack-sm uppercase opacity-70">Points Accumulated</p>
+</section>
+<!-- Top 5 Teams Header -->
+<div class="flex items-center justify-between mb-stack-md">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-white">Your Top 5 Teams</h3>
+<span class="font-label-md text-label-md text-secondary">View History</span>
+</div>
+<!-- Team Cards List -->
+<div class="space-y-stack-md pb-stack-lg">
+<!-- Rank 1: Platinum Card -->
+<div class="platinum-gradient rounded-xl p-base shadow-[0_0_30px_rgba(255,255,255,0.15)] transform hover:scale-[1.02] transition-transform">
+<div class="bg-surface-container-highest/90 backdrop-blur-sm rounded-[calc(0.75rem-4px)] p-stack-md flex flex-col gap-stack-sm relative overflow-hidden">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-stack-sm">
+<div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+<img alt="" class="w-8 h-8 rounded-sm object-cover" data-alt="A high-fidelity macro photograph of the Brazilian national football flag, captured with cinematic depth of field and soft stadium lighting. The vibrant green and yellow colors are saturated and crisp, reflecting a professional sports broadcasting aesthetic. The fabric texture is visible, suggesting a premium, official team jersey material under bright arena spotlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0oGUtHhDHAYDSUXHwL8XOa_k52VgtUshbQecdAe2XBFRewkIwYYScHVWyKjExVnqHeJXRWPqC_xz_SwHT3CXBXMDMPRcaiygXqG2ObRVEVyeoAE06_iGZwh0bDR4GAdU5sxoyR7vfUXMybKCML7Vqi7c9esYXgQF7e08dDOm65EgcM5eEveOPYCUnuKaH9Uv_N7SZSUJtJEDMBW17aZLnBkvxmiGssoqvr413sb_tWKLZgAytbuzZFcSd5oAFct-J3DJzpzUX6WLQ"/>
+</div>
+<div>
+<h4 class="font-headline-lg-mobile text-white leading-none">Brazil</h4>
+<span class="font-label-sm text-on-surface-variant">Rank 1 • World Class</span>
+</div>
+</div>
+<div class="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
+<span class="font-label-md text-white">+5 Multiplier</span>
+</div>
+</div>
+<div class="mt-base flex items-end justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-on-surface-variant uppercase text-[10px]">Visual Calculation</span>
+<div class="flex items-center gap-2 font-score-display text-headline-lg text-primary">
+<span>12 Goals</span>
+<span class="text-white/40">×</span>
+<span>(8 Wins + 5 Rank)</span>
+<span class="text-secondary text-[24px]">=</span>
+<span class="text-secondary-container drop-shadow-[0_0_10px_rgba(47,248,1,0.5)]">780 pts</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Rank 2-4 (Standard) -->
+<div class="bg-surface-container rounded-xl border border-white/5 p-stack-md hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center border border-white/5">
+<img alt="" class="w-7 h-7 rounded-sm object-cover" data-alt="A cinematic close-up of the French tricolor flag with sharp focus and deep contrast. The lighting mimics a dramatic night match atmosphere with lens flares and high-key highlights. The texture of the flag is finely detailed, evoking the premium feel of a national team crest." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAv9edprOMXIwtt4L-MeRDYmd-TdI-zg2fBl0-KPJtnSePeYxTYduHguHOen8HbFvP-Za28ByoNwvPnT3UgVlB7ZpwzD2wvQuPJqVJPuHJxENJueEszIL8GIe11SVIHL4-hFfpE9lrp5bydGc3nyDWmNgfHnP-eGNQ6NRAPaYkwGJByOXYGXE58ZwN-SNE-xBLGXzBK5zaKKTh7vJO-HbSTQCqkuFYr59zhr3_maOyQG71Yq7JBtUn0jEIOfHUIcjPFPmyPZR7JCLse"/>
+</div>
+<div>
+<h4 class="font-label-md text-white">France</h4>
+<span class="font-label-sm text-on-surface-variant">Rank 2 • Contender</span>
+</div>
+</div>
+<div class="text-right">
+<div class="font-score-display text-headline-lg-mobile text-primary">540 <span class="text-label-sm font-label-sm text-on-surface-variant">pts</span></div>
+<div class="text-[10px] text-on-surface-variant font-label-sm">9 Goals × (6 Wins + 4 Rank)</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl border border-white/5 p-stack-md hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center border border-white/5">
+<img alt="" class="w-7 h-7 rounded-sm object-cover" data-alt="The Argentine flag displayed with a vibrant, high-contrast digital art style. The light blue and white stripes are illuminated by a soft neon glow, creating a modern and celebratory mood. The sun emblem in the center is rendered with sharp metallic detail, fitting a high-stakes tournament interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKoFpQBhIiywMIimHPVUFq5GCZikwIcmxIxvYV6r0r4m0-LWs2mReDDdTIOSl8eZ4YIFX299f0X1cQzmKWEYJlHlaDwVSmh9-cijVcx0ef29WlGaWeTvjdhIr3MgtXZDYHsOkkwrqOb7Nhai-ne7wd4tBtsV3cA9HpwJ_GaAt-4D4_OCwhJ6PvEP3ayGwYfrGF6t3XG7rHFhTlgFrmdLwY5_rFarm1jMpSAwN8egf7vLKfMb7QzYXQ6wBsKBEaKAqXLXYTNszCYrYW"/>
+</div>
+<div>
+<h4 class="font-label-md text-white">Argentina</h4>
+<span class="font-label-sm text-on-surface-variant">Rank 3 • Elite</span>
+</div>
+</div>
+<div class="text-right">
+<div class="font-score-display text-headline-lg-mobile text-primary">480 <span class="text-label-sm font-label-sm text-on-surface-variant">pts</span></div>
+<div class="text-[10px] text-on-surface-variant font-label-sm">8 Goals × (4 Wins + 4 Rank)</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl border border-white/5 p-stack-md hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center border border-white/5">
+<img alt="" class="w-7 h-7 rounded-sm object-cover" data-alt="A stylized and professional presentation of the German national flag under dramatic, high-contrast studio lighting. The black, red, and gold colors are bold and saturated, reflecting a clean and modern aesthetic. The surface has a subtle matte texture that feels premium and durable." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVyEqOWJqCf0TdemRLPejCWMe-wiQu2vDKWgdobvK36VnOHjz3Z1_-9fc_Wr7iSj-18t10YxjZqdydqrg1rZFn9DXSi8T_auh33KT04u_DCPW73XYTs_uJDltpbF7htpQS6D1f7YYwBzcrcKvbjFbyAoP2sHtfP-ysjHiPavli2xInh8KJFbez3L4k7iasb4jTPbRkBad2RvBbjd8hY5-fqwNNNYUUMR2StAnKKMGkf4MX_TzpQLFyB2rdKVODfXasMyu69bwEy9UL"/>
+</div>
+<div>
+<h4 class="font-label-md text-white">Germany</h4>
+<span class="font-label-sm text-on-surface-variant">Rank 4 • Challenger</span>
+</div>
+</div>
+<div class="text-right">
+<div class="font-score-display text-headline-lg-mobile text-primary">410 <span class="text-label-sm font-label-sm text-on-surface-variant">pts</span></div>
+<div class="text-[10px] text-on-surface-variant font-label-sm">7 Goals × (5 Wins + 3 Rank)</div>
+</div>
+</div>
+</div>
+<!-- Rank 5: Bronze Card -->
+<div class="bronze-gradient rounded-xl p-base shadow-[0_4px_20px_rgba(128,74,0,0.3)] transform hover:scale-[1.01] transition-transform">
+<div class="bg-surface-container-highest/90 backdrop-blur-sm rounded-[calc(0.75rem-4px)] p-stack-md flex justify-between items-center">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center border border-white/10">
+<img alt="" class="w-7 h-7 rounded-sm border border-black/5 object-cover" data-alt="A clean, minimalist depiction of the Japanese flag with a soft, diffused lighting effect. The red circle is deep and vibrant against the crisp white background. The overall aesthetic is peaceful yet powerful, rendered with a professional digital photography finish suitable for a world-class sports app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEX86XkQ1Tig2lZUTEj-GwOn6DxRTXVEhX7u1GKC9X9LwA0w4lK0-vlIg00_6WTREy4_ltLXdqm678BGxarLls_e8Z7w8McIgNQxrnQJJz57wJBF-Fu0VftP8tbdpDDajKldbe7Nr1msRJcOXmC7eidFgKwLeGe-DYG8_w_plqhyPHI6QYYtiZ651Qc2eLHfFQtiSQKfwzyQQF8fseFs08cKh5KTf6Paz0sROUExqMANDPJe9MlzN_6_qyDQ80mzBuant2B5FvcP4-"/>
+</div>
+<div>
+<h4 class="font-label-md text-white">Japan</h4>
+<span class="font-label-sm text-on-surface-variant">Rank 5 • Dark Horse</span>
+</div>
+</div>
+<div class="text-right">
+<div class="font-score-display text-headline-lg-mobile text-secondary-container">240 <span class="text-label-sm font-label-sm text-white/60">pts</span></div>
+<div class="text-[10px] text-white/50 font-label-sm italic">+1 Bronze Bonus Applied</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive CTA Section -->
+<section class="mt-stack-lg mb-stack-lg p-stack-md rounded-2xl bg-gradient-to-br from-primary-container/20 to-transparent border border-primary/20 flex flex-col items-center gap-stack-md">
+<h3 class="font-headline-lg text-white text-center">Climb the Family Leaderboard</h3>
+<p class="text-body-md text-on-surface-variant text-center max-w-[280px]">Predict upcoming matches to boost your Rank Bonus!</p>
+<button class="w-full bg-primary-container text-on-primary-container font-headline-lg-mobile py-4 rounded-xl shadow-[0_0_20px_rgba(255,0,255,0.4)] active:scale-95 transition-all">
+                BOOST MY SCORE
+            </button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-surface-container/90 backdrop-blur-lg border-t border-white/5 shadow-[0_-4px_24px_rgba(0,0,0,0.5)] h-20 flex justify-around items-center px-4 pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary bg-secondary/10 rounded-full px-4 py-1 ring-1 ring-secondary/50 shadow-[0_0_12px_rgba(47,248,1,0.3)] active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grade</span>
+<span class="font-label-sm text-label-sm">My Rankings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-sm text-label-sm">Standings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 duration-300" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</nav>
+<!-- Micro-interaction Particle Effect Canvas -->
+<canvas class="fixed inset-0 pointer-events-none z-[10] opacity-30" id="particle-canvas"></canvas>
+<script>
+        // Atmospheric Particle Effect
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height + 10;
+                this.size = Math.random() * 2 + 1;
+                this.speed = Math.random() * 1 + 0.5;
+                this.opacity = Math.random() * 0.5 + 0.1;
+                this.color = Math.random() > 0.5 ? '#ff00ff' : '#2ff801';
+            }
+            update() {
+                this.y -= this.speed;
+                if (this.y < -10) this.reset();
+            }
+            draw() {
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            resize();
+            for (let i = 0; i < 50; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        init();
+        animate();
+    </script>
+</body></html>
+
+<!-- Dashboard - My Rankings -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Family Clash 2026 - Competition View</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pulse-neon {
+            animation: pulse-neon 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-neon {
+            0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
+            50% { opacity: 0.7; filter: drop-shadow(0 0 2px currentColor); }
+        }
+        .platinum-gradient {
+            background: linear-gradient(135deg, #E5E4E2 0%, #71706E 100%);
+            position: relative;
+        }
+        .platinum-gradient::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3ExternalIcon%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+        }
+        .chart-container {
+            background: linear-gradient(180deg, rgba(255, 0, 255, 0.05) 0%, rgba(19, 19, 19, 0) 100%);
+        }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#510051",
+                        "inverse-surface": "#e5e2e1",
+                        "error-container": "#93000a",
+                        "primary-fixed": "#ffd7f5",
+                        "surface-container-highest": "#353534",
+                        "secondary": "#d7ffc5",
+                        "secondary-container": "#2ff801",
+                        "tertiary-container": "#c8a900",
+                        "on-tertiary-fixed-variant": "#544600",
+                        "secondary-fixed-dim": "#2ae500",
+                        "primary-fixed-dim": "#ffabf3",
+                        "tertiary-fixed-dim": "#e9c400",
+                        "surface-container": "#201f1f",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-secondary": "#053900",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed": "#221b00",
+                        "on-secondary-container": "#0f6d00",
+                        "on-background": "#e5e2e1",
+                        "on-secondary-fixed-variant": "#095300",
+                        "background": "#131313",
+                        "surface-bright": "#393939",
+                        "inverse-primary": "#a900a9",
+                        "secondary-fixed": "#79ff5b",
+                        "surface-tint": "#ffabf3",
+                        "outline": "#a4899d",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#810081",
+                        "surface": "#131313",
+                        "on-primary-fixed": "#380038",
+                        "surface-dim": "#131313",
+                        "on-error-container": "#ffdad6",
+                        "primary": "#ffabf3",
+                        "tertiary": "#e9c400",
+                        "on-tertiary-container": "#4b3e00",
+                        "on-surface-variant": "#dcbed4",
+                        "tertiary-fixed": "#ffe16d",
+                        "primary-container": "#ff00ff",
+                        "outline-variant": "#564052",
+                        "inverse-on-surface": "#313030",
+                        "on-secondary-fixed": "#022100",
+                        "on-surface": "#e5e2e1",
+                        "surface-container-low": "#1c1b1b",
+                        "on-primary": "#5b005b",
+                        "surface-variant": "#353534"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "gutter": "12px",
+                        "base": "4px",
+                        "stack-md": "16px",
+                        "margin-desktop": "32px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Oswald"],
+                        "label-sm": ["Be Vietnam Pro"],
+                        "score-display": ["Oswald"],
+                        "label-md": ["Be Vietnam Pro"],
+                        "headline-lg": ["Oswald"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Oswald"],
+                        "body-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "score-display": ["40px", {"lineHeight": "40px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-white/10 shadow-[0_0_20px_rgba(255,0,255,0.15)] flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl">sports_soccer</span>
+<h1 class="font-display-lg text-headline-lg-mobile uppercase tracking-tighter text-primary">Family Clash 2026</h1>
+</div>
+<button class="active:scale-95 transition-transform duration-200 hover:opacity-80">
+<span class="material-symbols-outlined text-primary">notifications</span>
+</button>
+</header>
+<main class="pt-20 px-margin-mobile space-y-stack-lg max-w-screen-xl mx-auto">
+<!-- Live Leaderboard Graph Section -->
+<section class="chart-container rounded-xl border border-white/10 p-stack-md relative overflow-hidden">
+<div class="flex justify-between items-end mb-stack-md">
+<div>
+<span class="text-secondary font-label-md uppercase tracking-widest pulse-neon">Live Standings</span>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile mt-1">Clash Projection</h2>
+</div>
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-tertiary shadow-[0_0_10px_rgba(233,196,0,0.5)] overflow-hidden">
+<img alt="Avatar" data-alt="A portrait of a triumphant male sports fan with a gold glowing aura around his head. The background is a dark, high-octane stadium setting with magenta and neon green lens flares. The digital art style is clean and modern, focusing on sharp lines and intense emotional expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgyg7tEcMGWsAg1PmQ-Lmnu5F8htyYnJslI4pgm0lzxIRyLXVZNlItuUHDzxOHMvwE_P2L6WY6Av7IiN3zE9ARnzxocoWBaHoqExu-aKhvxEAere5PU4yjzdHUtwF7li6jNeb_U5m5BI-X2i8Jx4mH7f1iC-DXbxF2i_tIzoACa_TDxeKb8sL4k-pEnjAcD1l7NskMyrT5vhenx1Rsiv2waroSb2GDQL5f2NX-WLGRHo4sywtztxj5Ct25Gp5hxmRghsDkLd72mwdt"/>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-primary/50 overflow-hidden">
+<img alt="Avatar" data-alt="A high-contrast digital illustration of a female competitor looking focused and determined. She is surrounded by a soft magenta glow, set against a deep charcoal background with subtle digital data overlays. The lighting is dramatic and cinematic, reminiscent of a high-end sports broadcast production." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-vkjXxjQtJG9eJSozsLTmLCvZ11d1B42Fjsr0oOtjOit3eYrE8Fb63nw1Vug2fXcFA9lhso8pTnHc8nmc1suDWaIBCqqq8eyqG198PJ0G6vhN0qIWYnobaUT6KHC6k7XHcB0Vp6CXMxHw9pM5H91YOMa1J_OkuWSZVIZMZgag7Z-UbCjlwA4qtjmqv2mqnv5nevGGCN6VUaQUjtwbUfMElimGf7bgA5upInN1PKl4kLAOJ5_sg9I6F2fcoFSzYrZRkUUMbD4_f0VR"/>
+</div>
+</div>
+</div>
+<!-- SVG Graph Visualization -->
+<div class="relative h-48 w-full">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 400 200">
+<!-- Grid Lines -->
+<line stroke="white" stroke-opacity="0.05" x1="0" x2="400" y1="50" y2="50"></line>
+<line stroke="white" stroke-opacity="0.05" x1="0" x2="400" y1="100" y2="100"></line>
+<line stroke="white" stroke-opacity="0.05" x1="0" x2="400" y1="150" y2="150"></line>
+<!-- Magenta Line (User 2) -->
+<path class="drop-shadow-[0_0_8px_rgba(255,171,243,0.6)]" d="M0,160 L100,140 L200,150 L300,100 L400,80" fill="none" stroke="#ffabf3" stroke-width="3"></path>
+<!-- Neon Green Line (User 3) -->
+<path class="drop-shadow-[0_0_8px_rgba(47,248,1,0.6)]" d="M0,180 L100,170 L200,130 L300,140 L400,110" fill="none" stroke="#2ff801" stroke-width="3"></path>
+<!-- Gold Line (Leader - User 1) -->
+<path class="drop-shadow-[0_0_12px_rgba(233,196,0,0.8)]" d="M0,140 L100,100 L200,80 L300,40 L400,20" fill="none" stroke="#e9c400" stroke-width="4"></path>
+<!-- Rank Up Cues -->
+<circle cx="300" cy="40" fill="#e9c400" r="4"></circle>
+<text fill="#e9c400" font-family="Oswald" font-size="12" font-weight="bold" x="310" y="35">RANK UP!</text>
+</svg>
+<!-- Dynamic Leader Indicator -->
+<div class="absolute top-2 right-0 flex items-center gap-2 bg-tertiary text-on-tertiary px-3 py-1 rounded-full animate-bounce shadow-lg">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<span class="font-label-sm">ALEX IS LEADING</span>
+</div>
+</div>
+<div class="mt-stack-md grid grid-cols-3 gap-gutter text-center">
+<div class="p-base rounded-lg bg-surface-container-low border border-white/5">
+<p class="font-label-sm opacity-60">Avg. Points</p>
+<p class="font-score-display text-primary">84</p>
+</div>
+<div class="p-base rounded-lg bg-surface-container-low border border-white/5">
+<p class="font-label-sm opacity-60">Success rate</p>
+<p class="font-score-display text-secondary">72%</p>
+</div>
+<div class="p-base rounded-lg bg-surface-container-low border border-white/5">
+<p class="font-label-sm opacity-60">Active Bets</p>
+<p class="font-score-display text-tertiary">12</p>
+</div>
+</div>
+</section>
+<!-- World Cup Bracket Section -->
+<section class="space-y-stack-md">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile">Tournament Bracket</h3>
+<span class="bg-secondary/10 text-secondary px-3 py-1 rounded-full font-label-sm border border-secondary/30">QUARTER FINALS</span>
+</div>
+<!-- Scrollable Bracket Visualization -->
+<div class="overflow-x-auto pb-stack-md">
+<div class="flex gap-stack-lg min-w-[600px] py-stack-sm">
+<!-- Column 1: Quarter Finals -->
+<div class="flex-1 space-y-stack-lg flex flex-col justify-around">
+<!-- Match 1 -->
+<div class="bg-surface-container rounded-xl p-stack-sm border border-white/10 shadow-lg relative group overflow-hidden">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="w-6 h-4 bg-blue-600 rounded-sm"></span>
+<span class="font-label-md">FRA</span>
+</div>
+<span class="font-score-display text-lg">2</span>
+</div>
+<div class="flex items-center justify-between border-t border-white/5 pt-2">
+<div class="flex items-center gap-2">
+<span class="w-6 h-4 bg-yellow-400 rounded-sm"></span>
+<span class="font-label-md">BRA</span>
+</div>
+<span class="font-score-display text-lg text-on-surface-variant">1</span>
+</div>
+</div>
+<!-- Match 2 -->
+<div class="bg-surface-container rounded-xl p-stack-sm border border-white/10 shadow-lg">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="w-6 h-4 bg-red-600 rounded-sm"></span>
+<span class="font-label-md">ESP</span>
+</div>
+<span class="font-score-display text-lg">3</span>
+</div>
+<div class="flex items-center justify-between border-t border-white/5 pt-2">
+<div class="flex items-center gap-2">
+<span class="w-6 h-4 bg-white border border-gray-300 rounded-sm"></span>
+<span class="font-label-md">ENG</span>
+</div>
+<span class="font-score-display text-lg text-on-surface-variant">0</span>
+</div>
+</div>
+</div>
+<!-- Connectors Column -->
+<div class="w-12 flex flex-col justify-around py-4">
+<div class="h-1/2 border-r-2 border-t-2 border-b-2 border-white/10 rounded-r-xl self-center w-full"></div>
+</div>
+<!-- Column 2: Semi Finals -->
+<div class="flex-1 flex flex-col justify-center">
+<div class="bg-surface-container rounded-xl p-stack-sm border border-primary/40 shadow-[0_0_15px_rgba(255,0,255,0.2)] platinum-gradient text-inverse-on-surface">
+<div class="text-[10px] font-bold uppercase tracking-tighter mb-2 opacity-70">Semi-Final A</div>
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="w-6 h-4 bg-blue-600 rounded-sm"></span>
+<span class="font-label-md">FRA</span>
+</div>
+<span class="font-label-sm italic">Pending</span>
+</div>
+<div class="flex items-center justify-between border-t border-black/10 pt-2">
+<div class="flex items-center gap-2">
+<span class="w-6 h-4 bg-red-600 rounded-sm"></span>
+<span class="font-label-md">ESP</span>
+</div>
+<span class="font-label-sm italic">Pending</span>
+</div>
+</div>
+</div>
+<!-- Final Connector -->
+<div class="w-12 flex items-center">
+<div class="w-full h-[2px] bg-gradient-to-r from-white/10 to-tertiary"></div>
+</div>
+<!-- Column 3: The Final -->
+<div class="flex-1 flex flex-col justify-center">
+<div class="bg-surface-container-highest rounded-xl p-stack-md border-2 border-tertiary shadow-[0_0_30px_rgba(233,196,0,0.4)] text-center relative">
+<span class="material-symbols-outlined text-tertiary absolute -top-4 left-1/2 -translate-x-1/2 bg-background p-1" style="font-variation-settings: 'FILL' 1;">trophy</span>
+<div class="font-display-lg text-xl uppercase tracking-widest text-tertiary mb-2">The Final</div>
+<div class="flex flex-col items-center gap-2 py-4">
+<div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+<span class="material-symbols-outlined opacity-30">question_mark</span>
+</div>
+<div class="font-score-display text-2xl">VS</div>
+<div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+<span class="material-symbols-outlined opacity-30">question_mark</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Stats Bento -->
+<section class="grid grid-cols-2 gap-gutter">
+<div class="bg-surface-container-low rounded-xl p-stack-md border border-white/5 flex flex-col items-center justify-center space-y-2">
+<span class="material-symbols-outlined text-secondary">trending_up</span>
+<span class="font-label-sm opacity-60">Global Ranking</span>
+<span class="font-headline-lg-mobile text-secondary">#1,204</span>
+</div>
+<div class="bg-surface-container-low rounded-xl p-stack-md border border-white/5 flex flex-col items-center justify-center space-y-2">
+<span class="material-symbols-outlined text-primary">bolt</span>
+<span class="font-label-sm opacity-60">Points Streak</span>
+<span class="font-headline-lg-mobile text-primary">5D</span>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-surface-container/90 backdrop-blur-lg border-t border-white/5 shadow-[0_-4px_24px_rgba(0,0,0,0.5)] flex justify-around items-center h-20 px-4 pb-safe">
+<a class="flex flex-col items-center justify-center text-secondary bg-secondary/10 rounded-full px-4 py-1 ring-1 ring-secondary/50 shadow-[0_0_12px_rgba(47,248,1,0.3)] active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined">grade</span>
+<span class="font-label-sm">My Rankings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-sm">Standings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-sm">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for the chart points
+        document.querySelectorAll('circle').forEach(point => {
+            point.addEventListener('mouseenter', function() {
+                this.setAttribute('r', '8');
+                this.style.transition = 'all 0.3s ease';
+            });
+            point.addEventListener('mouseleave', function() {
+                this.setAttribute('r', '4');
+            });
+        });
+
+        // Atmospheric glowing pulses
+        setInterval(() => {
+            const chart = document.querySelector('.chart-container');
+            chart.style.boxShadow = `0 0 ${Math.random() * 20 + 10}px rgba(255, 0, 255, 0.1)`;
+        }, 1000);
+    </script>
+</body></html>
+
+<!-- Home - Competition View -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Standings - Family Clash 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-container": "#510051",
+                    "inverse-surface": "#e5e2e1",
+                    "error-container": "#93000a",
+                    "primary-fixed": "#ffd7f5",
+                    "surface-container-highest": "#353534",
+                    "secondary": "#d7ffc5",
+                    "secondary-container": "#2ff801",
+                    "tertiary-container": "#c8a900",
+                    "on-tertiary-fixed-variant": "#544600",
+                    "secondary-fixed-dim": "#2ae500",
+                    "primary-fixed-dim": "#ffabf3",
+                    "tertiary-fixed-dim": "#e9c400",
+                    "surface-container": "#201f1f",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-secondary": "#053900",
+                    "error": "#ffb4ab",
+                    "on-tertiary-fixed": "#221b00",
+                    "on-secondary-container": "#0f6d00",
+                    "on-background": "#e5e2e1",
+                    "on-secondary-fixed-variant": "#095300",
+                    "background": "#131313",
+                    "surface-bright": "#393939",
+                    "inverse-primary": "#a900a9",
+                    "secondary-fixed": "#79ff5b",
+                    "surface-tint": "#ffabf3",
+                    "outline": "#a4899d",
+                    "on-error": "#690005",
+                    "on-primary-fixed-variant": "#810081",
+                    "surface": "#131313",
+                    "on-primary-fixed": "#380038",
+                    "surface-container-high": "#2a2a2a",
+                    "on-tertiary": "#3a3000",
+                    "surface-dim": "#131313",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ffabf3",
+                    "tertiary": "#e9c400",
+                    "on-tertiary-container": "#4b3e00",
+                    "on-surface-variant": "#dcbed4",
+                    "tertiary-fixed": "#ffe16d",
+                    "primary-container": "#ff00ff",
+                    "outline-variant": "#564052",
+                    "inverse-on-surface": "#313030",
+                    "on-secondary-fixed": "#022100",
+                    "on-surface": "#e5e2e1",
+                    "surface-container-low": "#1c1b1b",
+                    "on-primary": "#5b005b",
+                    "surface-variant": "#353534"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "16px",
+                    "stack-sm": "8px",
+                    "stack-lg": "24px",
+                    "gutter": "12px",
+                    "base": "4px",
+                    "stack-md": "16px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Oswald"],
+                    "label-sm": ["Be Vietnam Pro"],
+                    "score-display": ["Oswald"],
+                    "label-md": ["Be Vietnam Pro"],
+                    "headline-lg": ["Oswald"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "headline-lg-mobile": ["Oswald"],
+                    "body-md": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "score-display": ["40px", {"lineHeight": "40px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .platinum-card {
+            background: linear-gradient(135deg, #E5E4E2 0%, #71706E 100%);
+            position: relative;
+        }
+        .platinum-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+        }
+        .bracket-line {
+            position: absolute;
+            background: rgba(220, 190, 212, 0.2);
+        }
+        .glow-active {
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.15);
+        }
+        .neon-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary selection:text-on-primary min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-white/10 shadow-[0_0_20px_rgba(255,0,255,0.15)]">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="sports_soccer">sports_soccer</span>
+<h1 class="font-display-lg text-[24px] uppercase tracking-tighter text-primary">Family Clash 2026</h1>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:opacity-80 transition-opacity active:scale-95 duration-200" data-icon="notifications">notifications</button>
+</div>
+</header>
+<main class="flex-grow pt-20 pb-24 overflow-x-hidden">
+<!-- Group Stage Carousel -->
+<section class="mb-stack-lg">
+<div class="px-margin-mobile mb-stack-md flex justify-between items-center">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">Group Standings</h2>
+<span class="font-label-md text-label-md text-secondary uppercase tracking-widest">Stage 1</span>
+</div>
+<div class="flex overflow-x-auto gap-4 px-margin-mobile no-scrollbar snap-x">
+<!-- Group A -->
+<div class="min-w-[280px] bg-surface-container-low border border-white/10 rounded-xl p-4 snap-center">
+<div class="flex justify-between items-center mb-4 border-b border-white/5 pb-2">
+<span class="font-headline-lg-mobile text-lg text-primary">GROUP A</span>
+<span class="font-label-sm text-on-surface-variant">Live Stats</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between text-secondary">
+<div class="flex items-center gap-3">
+<img alt="Brazil" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The flag of Brazil, featuring its iconic green field and yellow rhombus with a blue celestial globe, rendered with realistic fabric texture and a subtle metallic shimmer to align with a premium sports broadcast aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAInvzQvB9yXs4-0N-_mq9WSnlifijCD5HjhDdg6QJFXmHKG7wh0gCJmqtGtPyin5gxOjv3Qxk17I-osD5Toip0IWakIdcejS3p-AZolQzAophfKfAin8qkdD5XvPLao5HOAeMFJ8x58dAPvO-AWJu3yzfFTibJnpTOjGDr4Hxc_5n_KrlXDMCMcqDtdFeM9Oygg-EUMWTwqmaSdD8qANJ_O8jYXDpWjqiV6Io5zHVmu0F3FHH-RpNoQikmWei4BmEfhHkHgLtkz477"/>
+<span class="font-label-md">Brazil</span>
+</div>
+<span class="font-score-display text-sm">9</span>
+</div>
+<div class="flex items-center justify-between text-secondary">
+<div class="flex items-center gap-3">
+<img alt="France" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The French tricolor flag, vertical stripes of blue, white, and red, displayed with a sharp, high-contrast finish against a dark charcoal background. The lighting is dramatic, highlighting the textile weave of the flag in a high-octane competitive atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCETBGHdG0kvzf5qwISlN80f0e8v266S4TgUAWMOyU2v73kxtNNu3Z2QSGR0iI_hzDnQc8SYHxTAz5ecMXDKHy7gpKsNWAHg9FmQCXqcAuJB1kRNQesZLaVUxoQF2q7xEyKTL7-iZrpyvHt7bV-XZTSoevv5ZEdlZEVSZsC1spqiyFswg_q5-ZzQqaxhg8yOenv0JkYE5136SwzVeI64IsafI0TtgMOMCL-ZBovsNUss6NzPIzntke5CbFoq9pQIcZRNJXEBYi92cUf"/>
+<span class="font-label-md">France</span>
+</div>
+<span class="font-score-display text-sm">6</span>
+</div>
+<div class="flex items-center justify-between opacity-50">
+<div class="flex items-center gap-3">
+<img alt="Japan" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The national flag of Japan, a white field with a central red sun, presented in a minimalist and clean digital style. The flag has a soft ambient glow around its edges, fitting the glassmorphism and neon-lit design language of the modern sports app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyYI16znMqWKIaMI43UZyAb4gpzlOk_JGkmpJjKKWGZSJ1XTbPTO60LWvLjYa4NK_NWc6OBgXNmBA1MwCtsAtYuInFQPXDsk60ZApdzWQiFVv5ujUB59tTPrksgDoZEyF2pKnuYGZFEIM001NOIM9hdtB5FjY6OzuZzXvihgJUqFk4MPsk-nuehIIuBAx4Uk0kzOVTBweXjF6-LrFLVLnqbkzXJ1ca5xKdjsARNPtewalv1Lbi5DEUwxCaLMC5w_ykzYhKx3rDKuvX"/>
+<span class="font-label-md">Japan</span>
+</div>
+<span class="font-score-display text-sm">3</span>
+</div>
+<div class="flex items-center justify-between opacity-50">
+<div class="flex items-center gap-3">
+<img alt="South Africa" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The colorful flag of South Africa with its distinctive Y-shape, showcased with vibrant, high-saturation colors. The image is framed as a player card element within a dark mode interface, emphasizing a professional tournament and competitive gaming mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnGG-qa_E8mHlYaABvRuuFgRUHZCK-Z5pMWReCsqjR368YILJ2LbEV8BIaunkJlsonYEGzvtwx1vnqI-omNDox6iJFkUmlJUlkQkRvaXwaTeb8H7L7PoO6XwC2aYorPUPPrMn_TWeY0CkeFmlqEoW23ICGuukoaIvBCiBcbzEsIGwn9YS9Wfqidyg30IwlBcHGl5cUzKvnH7eSQEwDVY8uXriOm99h0xifg0R1SL6qgZjfn7hudrhNYWqiS4r2b8ULog24yPCLocc2"/>
+<span class="font-label-md">S. Africa</span>
+</div>
+<span class="font-score-display text-sm">0</span>
+</div>
+</div>
+</div>
+<!-- Group B -->
+<div class="min-w-[280px] bg-surface-container-low border border-white/10 rounded-xl p-4 snap-center">
+<div class="flex justify-between items-center mb-4 border-b border-white/5 pb-2">
+<span class="font-headline-lg-mobile text-lg text-primary">GROUP B</span>
+<span class="font-label-sm text-on-surface-variant">Live Stats</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between text-secondary">
+<div class="flex items-center gap-3">
+<img alt="Argentina" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The national flag of Argentina, with its light blue and white horizontal stripes and a central Sun of May. The flag appears as a high-resolution digital asset with a subtle glass effect and soft lighting, placed against a dark navy charcoal backdrop to convey premium quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuChADSE7LemwPbeba814OSJO4RQqpRRp8Nv8h6rHXtX6Rpdv1p89LnVkdN1RgahLF9-YpeXRQ7r83TcHcBhSuE6GvKKBx4kFzsjV8mwGg2f6dOUCuW9F1N2mrYJSWCFxXibEJmHHo4fGs1iSXMLK_O3HjJYi2v-Ui0INVn5uLoqb8CQ-3xCcdcvfClR87TXq--E2AQR3zV4k-CTsvU5_3AFpGeXfwzYOLBMmsEhURpOih73W65S68trn8yIpdGImTcocDuFyIvivAcx"/>
+<span class="font-label-md">Argentina</span>
+</div>
+<span class="font-score-display text-sm">7</span>
+</div>
+<div class="flex items-center justify-between text-secondary">
+<div class="flex items-center gap-3">
+<img alt="England" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The Cross of Saint George, flag of England, depicted in a sharp and clean graphic style. The red and white contrast is emphasized for high visibility within a competitive sports dashboard, surrounded by neon magenta and green accents typical of a live tournament UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXjaOGcIQV7x9Fx2YFqxuf5JPJXY6s1WBMq2zpMgIrCjZEvqtH8SFRSC_JALn3usSAh0MpsiQbOH7XoSLDC-6_y2dWy_VptpBpNryAZSX1Jd_M6XtY2QuSP_H4p3uNXsqg3Y03cVc15YyB-CV3jfOd0qwhev0eOWJl0kpK4OzM3LmSKjVzEpXr2bqdFdQubz53YfpdNi6x8e3JznmJYIsrK4taRpPrXQxzLj5b--C0xmv4_G9n_zrlk8zkSkYfwOo7fqxmwu-qYlsM"/>
+<span class="font-label-md">England</span>
+</div>
+<span class="font-score-display text-sm">5</span>
+</div>
+<div class="flex items-center justify-between opacity-50">
+<div class="flex items-center gap-3">
+<img alt="Senegal" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The flag of Senegal, featuring green, yellow, and red vertical bands with a green star in the center. The image is rendered with a realistic fabric texture and dramatic stadium-style lighting, emphasizing the competitive and celebratory energy of a global football championship." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEEnLLZ7AkZ-nC-dgRfq5NFhPGBM9Iha6tzgvODgGaJUxUa-uG9c_aS6gNmeIBy-nYAaDRj4E8MqMU3QcJcqTXW_Gwl_liotimLW0rlyOhUN3kJygkjI0-HZPrADT6mkU2dGBPyYZAknnRVS7-H0lytH0aPqBOjLwYw2YktpHkdC8xu3PVmftlTwdQwbTCA3FC9KPcv5JZrCwU6tP6M4micDIMkTq3IEjgY8XkoiCpE8XrupiuMI4CWk66tWRwQCI6P_qtIQA5ckut"/>
+<span class="font-label-md">Senegal</span>
+</div>
+<span class="font-score-display text-sm">4</span>
+</div>
+<div class="flex items-center justify-between opacity-50">
+<div class="flex items-center gap-3">
+<img alt="South Korea" class="w-6 h-4 object-cover rounded-sm shadow-sm" data-alt="The South Korean flag, Taegukgi, with its white background and central red and blue emblem. The design is presented as a sleek UI element, utilizing clean lines and a modern digital finish that complements the dark mode aesthetic of the Family Clash 2026 sports app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUBMmWKTQP3i25kqKj0Fqf_HlVOgBlOXlTvvjfX3y85PcoeQ6SYIX7uUcS9eeq_0LnHLayhQVfnhes4yt_23GcVrMAkOo5BxypPROViAIQ5v3M9XkJR38OZw7Wsp6B3OHJDC4KKgz_AenaR2BwvMXifK94sRNvqKe6_-EtneN7EdpOV_9kkEJ6qyttJOskCOCyE_ei-tBVRQ00BlpcBkSFDUGyUAtAHRMXk-dIiDloR9-lobK2LMZpjMRWzMFYmaFua61aureIsjkd"/>
+<span class="font-label-md">S. Korea</span>
+</div>
+<span class="font-score-display text-sm">0</span>
+</div>
+</div>
+</div>
+<!-- Placeholder for C-H scrollable indication -->
+<div class="min-w-[100px] flex items-center justify-center text-on-surface-variant/30 font-display-lg text-4xl snap-center">...</div>
+</div>
+</section>
+<!-- Knockout Bracket -->
+<section class="mb-stack-lg relative">
+<div class="px-margin-mobile mb-stack-md">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">Tournament Bracket</h2>
+<p class="font-body-md text-on-surface-variant opacity-70">The road to the Final</p>
+</div>
+<div class="overflow-x-auto no-scrollbar pb-8">
+<div class="inline-flex gap-12 px-margin-mobile relative">
+<!-- Round of 16 -->
+<div class="w-64 space-y-12 flex flex-col justify-around">
+<div class="space-y-4">
+<h3 class="font-label-sm text-on-surface-variant/50 uppercase tracking-widest text-center">Round of 16</h3>
+<!-- Match 1 -->
+<div class="bg-surface-container-high rounded-lg p-3 border border-white/5 relative group cursor-pointer hover:border-primary/50 transition-colors">
+<div class="flex justify-between items-center mb-2 text-secondary">
+<span class="font-label-md flex items-center gap-2"><img class="w-4 h-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdC97HMsJMUHo5wkqI42P70XbPePt_Q628XflX5-LHYaRVQUSJBwnfZ3AuYRujEG8yymSRN6HsNCqZTfTluKteiGKYpLxpDMaX7WZSoSHhxc_h0sLS4hZLN2HMgB95NHs6anASTed2eGr5Nr9JFSsAK4NFKqOhaKJdPqSLMgLQ-U8R2VaSfXLDVlifln9eInuWWzTju1efgtik7ugmajC-ohhyb_LaCXN23pix8IrV92yXADB8h_lGCL4LfKbGPQf_vZQuIUwt4rJP"/> BRA</span>
+<span class="font-score-display text-sm">3</span>
+</div>
+<div class="flex justify-between items-center opacity-40">
+<span class="font-label-md flex items-center gap-2"><img class="w-4 h-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyUxEerSM72UYZttItdWmq3mHOLivifr_kuMIobbtajKspj-e8y7oy6yxlF6g80twnSxJF458aj7_U4ZpwAo_fe7uWGXJ-NH1fVvZG0RweJh3PX6QVc8sVay-KU_IBpz-wmQ3fMyE9oSnaWM4gtMCbJ8Uo_KIijUBxamdy9nlFnKoHplKVvdt2GCdwiPbAtjXsMC8ET5xAfQYXLFDBwOde3YhOK61-JLU7euQosYHw1sK2UAawTu2wfw2kFi_veWQi5NOtUt_C_nb_"/> KOR</span>
+<span class="font-score-display text-sm">1</span>
+</div>
+<!-- Connector -->
+<div class="absolute -right-12 top-1/2 w-12 h-[1px] bg-white/10"></div>
+</div>
+<!-- Match 2 -->
+<div class="bg-surface-container-high rounded-lg p-3 border border-white/5 relative group cursor-pointer hover:border-primary/50 transition-colors">
+<div class="flex justify-between items-center opacity-40">
+<span class="font-label-md flex items-center gap-2"><img class="w-4 h-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBH-_Sn_rmHr0AN7KTsbasH8ZfzhyNzyYxhzeQv6lnvT6cuyB3kFFVb_-3lhz_zfUlU3IvrfIWRpZyXg_WiI9rT0pBBPK0UOaPIkO0n3Q8H02y5TEgrssKf0wYODLEVVmYl8adfSe0RV4FVgD1MbyQUx8_F29QVhfmIzQkhbDrHgYGVITAOe7khp_WnHGTpMIfiASr4ghEBI8BObDdM25re6RL-MJwc5vfzHu5cyLrozHIlRY5G4JhscMYb1Lta8251bWd4NHfpbhtZ"/> CRO</span>
+<span class="font-score-display text-sm">0</span>
+</div>
+<div class="flex justify-between items-center text-secondary">
+<span class="font-label-md flex items-center gap-2"><img class="w-4 h-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZ33wYX9KTt6zq_nZbqLI3KdqoQwVuE7xprDoOXpge5fBvHRhOWVrfl_BY4pVVfSQZG9wIgERmj_sPvWIfbxWjnX651PVm6Xssyp1z45B0LHR-OCSrw4KioWfVhvUiTa229T__aT_EeTMtYpdnVGnT7QY4wZxo3i_YLgEUI85XMmU27CCUsHDyeC_hEERfQiXOsfQTnEyrGDfO1cRoWHJraA8o-Codlmt_AJgNjknK13Xyd5i6Bdho6eqIUBwd7Uc8Wo7C5DgwjBAa"/> JPN</span>
+<span class="font-score-display text-sm">2</span>
+</div>
+<!-- Connector -->
+<div class="absolute -right-12 top-1/2 w-12 h-[1px] bg-white/10"></div>
+</div>
+</div>
+</div>
+<!-- Quarter Finals -->
+<div class="w-64 flex flex-col justify-center space-y-24">
+<h3 class="font-label-sm text-on-surface-variant/50 uppercase tracking-widest text-center">Quarter Finals</h3>
+<!-- Match 3 -->
+<div class="bg-surface-container-high rounded-lg p-3 border border-white/10 relative glow-active ring-1 ring-primary/20">
+<div class="flex justify-between items-center mb-2 text-secondary">
+<span class="font-label-md flex items-center gap-2"><img class="w-4 h-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2dr6XoFCFq_0VXMlKxYkQKg_bsTp9EH1NkZCZhs6AGpkys_iswA0CL04VWEAxoBRGP9CiPoQqBqIX8diWKL8oMhm0chStC_QhihgMp401VVN11_1a3v6-FmH-kRg8LixosVyybbeNJLjywrdOTZ5T4dBHhvaY9Q8x-49NhACzBubadxYmuRzL_a77CQRvVr0Qm47SL008axgNc9dG5wm7XKynSfPr1mxHg41-QyPpZV4mTraGFEAjVkLN1boJxbthIPomIlxDwD6-"/> BRA</span>
+<span class="font-score-display text-sm">2</span>
+</div>
+<div class="flex justify-between items-center text-secondary">
+<span class="font-label-md flex items-center gap-2"><img class="w-4 h-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpNA9N_7BgrYF-eB3Jyn7g8VHMkCZK_Sot0zKQdctD_9kd0GoqeyMe6znnEmh50qwZIrequp0zjqmSttqUdCpRR1VKoRrWM1A_kSLQtDux3mlvuih3plVD_L_uFX-MzD6f1yOCV7FbJP1hk-0oPJrHUpBEn1cncZdk5DisKEh4n9eHjKgV9bnzwy-TZUcCOdLFYUdNaQfdvjA6ksZsePXTbiFtMULXhHKc3mC3SAdXXf-jHmf6dh45D6o7DXiF5RFHDIgYWg8N_uCy"/> JPN</span>
+<span class="font-score-display text-sm">1</span>
+</div>
+<!-- LIVE Badge -->
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-secondary text-on-secondary font-label-sm px-2 py-0.5 rounded-full neon-pulse">LIVE</div>
+<!-- Connector -->
+<div class="absolute -right-12 top-1/2 w-12 h-[1px] bg-white/10"></div>
+</div>
+</div>
+<!-- Semi Finals -->
+<div class="w-64 flex flex-col justify-center">
+<h3 class="font-label-sm text-on-surface-variant/50 uppercase tracking-widest text-center mb-8">Semi Finals</h3>
+<div class="bg-surface-container-high rounded-lg p-3 border border-white/5 opacity-50 italic text-center py-8">
+<span class="text-on-surface-variant font-label-md">TBD vs TBD</span>
+</div>
+</div>
+<!-- Grand Final -->
+<div class="w-80 flex flex-col justify-center">
+<div class="platinum-card rounded-2xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/20 scale-110">
+<div class="flex flex-col items-center gap-4">
+<span class="material-symbols-outlined text-black text-5xl" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+<div class="text-center">
+<h3 class="font-display-lg text-2xl text-black leading-tight">GRAND FINAL</h3>
+<p class="font-label-sm text-black/60">Berlin - July 12, 2026</p>
+</div>
+<div class="w-full h-[1px] bg-black/10 my-2"></div>
+<div class="flex justify-between items-center w-full gap-4">
+<div class="flex flex-col items-center">
+<div class="w-12 h-12 rounded-full bg-white/50 border border-black/10 flex items-center justify-center overflow-hidden">
+<span class="material-symbols-outlined text-black/30">help</span>
+</div>
+<span class="font-label-sm text-black mt-2">Finalist 1</span>
+</div>
+<span class="font-display-lg text-black text-3xl">VS</span>
+<div class="flex flex-col items-center">
+<div class="w-12 h-12 rounded-full bg-white/50 border border-black/10 flex items-center justify-center overflow-hidden">
+<span class="material-symbols-outlined text-black/30">help</span>
+</div>
+<span class="font-label-sm text-black mt-2">Finalist 2</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Overview -->
+<section class="px-margin-mobile pb-8">
+<div class="grid grid-cols-2 gap-gutter">
+<div class="bg-surface-container-high rounded-xl p-4 border border-white/5">
+<p class="font-label-sm text-on-surface-variant opacity-60 uppercase mb-1">Top Scorer</p>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">V.J</div>
+<div>
+<p class="font-label-md text-secondary">Vinícius Jr</p>
+<p class="font-score-display text-lg">7 <span class="text-sm font-label-sm opacity-50">G</span></p>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-high rounded-xl p-4 border border-white/5">
+<p class="font-label-sm text-on-surface-variant opacity-60 uppercase mb-1">Most Assists</p>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary font-bold">K.D</div>
+<div>
+<p class="font-label-md text-secondary">De Bruyne</p>
+<p class="font-score-display text-lg">5 <span class="text-sm font-label-sm opacity-50">A</span></p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-surface-container/90 backdrop-blur-lg border-t border-white/5 shadow-[0_-4px_24px_rgba(0,0,0,0.5)]">
+<div class="flex justify-around items-center h-20 px-4 pb-safe w-full">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 duration-300 ease-out" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<!-- My Rankings -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 duration-300 ease-out" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="grade">grade</span>
+<span class="font-label-sm text-label-sm">My Rankings</span>
+</a>
+<!-- Standings (ACTIVE) -->
+<a class="flex flex-col items-center justify-center text-secondary bg-secondary/10 rounded-full px-4 py-1 ring-1 ring-secondary/50 shadow-[0_0_12px_rgba(47,248,1,0.3)] active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined mb-0.5" data-icon="account_tree" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="font-label-sm text-label-sm">Standings</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors active:scale-90 duration-300 ease-out" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</div>
+</nav>
+<script>
+        // Micro-interactions
+        document.querySelectorAll('.snap-center').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transform = 'scale(0.98)';
+                card.style.transition = 'transform 0.2s ease-out';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transform = 'scale(1)';
+            });
+        });
+
+        // Bracket scrolling observer
+        const bracket = document.querySelector('.overflow-x-auto');
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        bracket.addEventListener('mousedown', (e) => {
+            isDown = true;
+            bracket.classList.add('active');
+            startX = e.pageX - bracket.offsetLeft;
+            scrollLeft = bracket.scrollLeft;
+        });
+        bracket.addEventListener('mouseleave', () => {
+            isDown = false;
+        });
+        bracket.addEventListener('mouseup', () => {
+            isDown = false;
+        });
+        bracket.addEventListener('mousemove', (e) => {
+            if(!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - bracket.offsetLeft;
+            const walk = (x - startX) * 2;
+            bracket.scrollLeft = scrollLeft - walk;
+        });
+    </script>
+</body></html>
+
+<!-- Standings - Tournament Bracket -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Upcoming Games - Family Clash 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&amp;family=Oswald:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#2ff801",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-bright": "#393939",
+                    "inverse-on-surface": "#313030",
+                    "secondary-fixed-dim": "#2ae500",
+                    "primary-fixed": "#ffd7f5",
+                    "surface-container-high": "#2a2a2a",
+                    "surface-container-low": "#1c1b1b",
+                    "surface-variant": "#353534",
+                    "surface-container": "#201f1f",
+                    "on-tertiary": "#3a3000",
+                    "background": "#131313",
+                    "primary-container": "#ff00ff",
+                    "on-primary-fixed": "#380038",
+                    "on-primary": "#5b005b",
+                    "tertiary-container": "#c8a900",
+                    "on-secondary-fixed-variant": "#095300",
+                    "on-tertiary-fixed-variant": "#544600",
+                    "inverse-primary": "#a900a9",
+                    "primary": "#ffabf3",
+                    "on-tertiary-fixed": "#221b00",
+                    "on-secondary-container": "#0f6d00",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-error": "#690005",
+                    "error": "#ffb4ab",
+                    "on-secondary": "#053900",
+                    "on-surface": "#e5e2e1",
+                    "on-secondary-fixed": "#022100",
+                    "on-background": "#e5e2e1",
+                    "on-surface-variant": "#dcbed4",
+                    "surface-dim": "#131313",
+                    "secondary": "#d7ffc5",
+                    "error-container": "#93000a",
+                    "secondary-fixed": "#79ff5b",
+                    "tertiary-fixed-dim": "#e9c400",
+                    "outline": "#a4899d",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed-variant": "#810081",
+                    "on-primary-container": "#510051",
+                    "surface-container-highest": "#353534",
+                    "surface-tint": "#ffabf3",
+                    "primary-fixed-dim": "#ffabf3",
+                    "on-tertiary-container": "#4b3e00",
+                    "tertiary-fixed": "#ffe16d",
+                    "tertiary": "#e9c400",
+                    "surface": "#131313",
+                    "outline-variant": "#564052"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "24px",
+                    "margin-mobile": "16px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "gutter": "12px",
+                    "base": "4px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Be Vietnam Pro"],
+                    "label-md": ["Be Vietnam Pro"],
+                    "headline-lg-mobile": ["Oswald"],
+                    "body-md": ["Be Vietnam Pro"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "score-display": ["Oswald"],
+                    "display-lg": ["Oswald"],
+                    "headline-lg": ["Oswald"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "score-display": ["40px", {"lineHeight": "40px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>body {
+    background-color: #131313;
+    color: #e5e2e1;
+    -webkit-tap-highlight-color: transparent
+    }
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08)
+    }
+.platinum-card {
+    background: linear-gradient(135deg, #E5E4E2 0%, #71706E 100%);
+    position: relative;
+    overflow: hidden
+    }
+.platinum-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuB6K-8qZLZtg9qh81fl58wwK3Qd_QKdiN3r3XJj1PCEdlRI_ATNNiSFlT9-7JMeJi-FLA64DsjIauS2ZNPx8NOYowQrRutAqCIPivjQSS7aMW2jC-i-9pYKVwKG-Lj2dCfc-PkW3TknOkDqBk23EdiA2hyaUPICuDeiPmU-AdW94E7OXQG8okLqFWCWGiJXQdzVjl7E2HLwAVtIuJu_j3FTFjBgm8KaT6Y86YU00TJC8BpU8rcDt-nWc32xElSDcKhX_nTaq9P6UUP2);
+    opacity: 0.03
+    }
+.neon-pulse {
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+    animation: pulse 2s infinite
+    }
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 255, 0.7);
+        } 70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 255, 0);
+        } 100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 255, 0);
+        }
+    }
+.hide-scrollbar::-webkit-scrollbar {
+    display: none
+    }
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-white/10 shadow-[0_0_20px_rgba(255,0,255,0.15)] flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="sports_soccer">sports_soccer</span>
+<h1 class="font-display-lg text-display-lg uppercase tracking-tighter text-primary dark:text-primary" style="font-size: 20px; line-height: 24px;">Family Clash 2026</h1>
+</div>
+<button class="active:scale-95 transition-transform duration-200 hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</button>
+</header>
+<main class="pt-20 pb-28 px-margin-mobile max-w-md mx-auto min-h-screen">
+<!-- Upcoming Matches Section -->
+<section class="mb-stack-lg">
+<div class="flex items-center justify-between mb-stack-sm">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Upcoming Matches (Next 7 Days)</h2>
+<span class="text-primary font-label-md text-label-md">View All</span>
+</div>
+<div class="flex flex-col gap-gutter overflow-x-visible">
+<!-- Match Card 1: USA vs Mexico -->
+<div class="glass-card rounded-xl p-4 flex flex-col gap-stack-md transition-all active:scale-[0.98]">
+<div class="flex justify-between items-center">
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-label-sm font-label-sm text-secondary">TOMORROW, 20:00</span>
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 bg-secondary rounded-full animate-pulse"></span>
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Group Stage</span>
+</div>
+</div>
+<div class="flex items-center justify-between gap-2 px-2">
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 shadow-lg">
+<img alt="USA Flag" class="w-full h-full object-cover" data-alt="Close up high-resolution detail of a textured United States flag fabric with vibrant red white and blue colors under professional studio lighting. The aesthetic is clean and patriotic with a soft focus on the edges, fitting a premium sports broadcast theme with deep blacks and neon pink accents in the surrounding UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-XBrVweQdlPPd9hwyUYFFNylwXNQBSCOOr9VVMcCl_DHd1c4srK2wSBym-wxQkimEO6X1WFqqwuPqf7JTQUgI2zczkY4JT05UElddT4JEvDyI7DPovqbPXld3n9-RggdUKhYzApryBziCo0StLS469WcJmvIAjTMqYR-s-ut1Sn7tcX5TgHC_BGZHT50TC3D7Jj9oomYgiXAUnm3YviEzFAk0tZsROwIQ0_1y1WWJAd6M2T49XWs8EktpjVythkefwpZqN_IPW24r"/>
+</div>
+<span class="font-label-md text-label-md text-on-surface">USA</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-score-display text-score-display text-primary/40 italic">VS</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 shadow-lg">
+<img alt="Mexico Flag" class="w-full h-full object-cover" data-alt="Vibrant detail of a Mexican flag with its iconic green white and red vertical stripes. The fabric texture is visible and high-quality, captured under dramatic stadium lighting. The style is modern and high-contrast, designed to pop against a deep charcoal sports betting application background featuring magenta glow effects." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTwAuwAQnlLvx-CToVRmeKxwbG-Iw7DrSfxsJYh198cNvN-TtNOd-8tWa_9_s6JVxRkRNKf2NHBTxxtrBhRTZdUyBjKmIYrdeOp-38mYYTWZZxYCRh48CEjyI2Jta_If9wnk_Jd9wnwmzB7nE8CY4ujQm-FBeR7ccAHo2s_usHo1P6iYjwqhoJmDRoZog0U0wAzbn0PR3rudExmo57who3mSwOmIvF0YcLglarh9uQaiR0Cok-HPFmtdoJwYmpMQAgfHbf5Qza2sfT"/>
+</div>
+<span class="font-label-md text-label-md text-on-surface">Mexico</span>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container font-label-md text-label-md py-3 rounded-lg neon-pulse active:scale-95 transition-all">
+                        Bet Now
+                    </button>
+</div>
+<!-- Match Card 2: England vs France -->
+<div class="glass-card rounded-xl p-4 flex flex-col gap-stack-md transition-all active:scale-[0.98]">
+<div class="flex justify-between items-center">
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-label-sm font-label-sm text-on-surface-variant">JUNE 14, 18:30</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Quarter Final</span>
+</div>
+<div class="flex items-center justify-between gap-2 px-2">
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 shadow-lg">
+<img alt="England Flag" class="w-full h-full object-cover" data-alt="High-detail macro shot of the St Georges Cross of England, white background with a sharp red cross. The lighting is crisp and modern, emphasizing the weave of the flag fabric. The overall mood is competitive and professional, integrated into a dark high-octane sports app environment with electric neon accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXPyUgWiLL_254SJd46bX7IHhNDoge9LhvRPt1MILc7T-xM8LNcIHypsOx5UcUqiCF1LgizgSXAFhgTp4AA3-GZJYRUiSOfKK_5Xa_wNf_CGvyBd9qOKnn8BayLO08MxRzpYdaXW2UvxNsuN6PBMbuEsPuX31LivFvrkZh1hKmbqPyRDJJisyDnF8HNMCLc7EEz39A5hroX28Td70Pbb6HY4DOvwdVz4LcFpnwz9kHWg8_c5XU7MUSnHm7iW_lLQFlnisNeQDzQ3pw"/>
+</div>
+<span class="font-label-md text-label-md text-on-surface">England</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-score-display text-score-display text-primary/40 italic">VS</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 shadow-lg">
+<img alt="France Flag" class="w-full h-full object-cover" data-alt="Close-up artistic view of the French Tricolour flag featuring bold blue white and red panels. The colors are rich and saturated, rendered with a slight cinematic blur in the background. The lighting suggests a world-class football stadium at night, maintaining the high-energy aesthetic of a global tournament app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcEG6ND14H_PE-_4gUZk0aosGATihL-APPMXTPXg6yhZf31Gso1H99_9dwVvJVTL_HWO7QWyRX-UwVbBj37z5ESO0S8PrtsVRPIKoqSmhv8uaV_6QDICHv05F2hgr5JSNFivcDgHjDX0yg0dZo_L8tNffbxjyRyAJUCpUWWSR0oBazwVc4-XSfPopx5gSVI5JluGj2LKySd4mnvGFKWEsrfuAmQVSCAeqaxIdlggJtPXTwNRnh3QtlqxM1iNhtocoRxPLiwJCCxSUW"/>
+</div>
+<span class="font-label-md text-label-md text-on-surface">France</span>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container font-label-md text-label-md py-3 rounded-lg active:scale-95 transition-all">
+                        Bet Now
+                    </button>
+</div>
+</div>
+</section>
+<!-- Betting History Section -->
+<section>
+<div class="flex items-center justify-between mb-stack-sm">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Your Betting History</h2>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="history">history</span>
+</div>
+<div class="space-y-stack-sm">
+<!-- History Item 1: WIN -->
+<div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-secondary-container">
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md text-on-surface">Brazil vs Germany</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Bet: 500 pts • Outcome: Win</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-score-display text-[24px] leading-tight text-secondary-container">+1,250</span>
+<span class="text-[10px] uppercase font-bold text-secondary-container tracking-widest">Payout</span>
+</div>
+</div>
+<!-- History Item 2: PENDING -->
+<div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-tertiary">
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md text-on-surface">Argentina vs Spain</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Bet: 1,000 pts • Outcome: Pending</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-score-display text-[24px] leading-tight text-on-surface-variant">--</span>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Awaiting</span>
+</div>
+</div>
+<!-- History Item 3: LOSS -->
+<div class="glass-card rounded-xl p-4 flex items-center justify-between border-l-4 border-error">
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md text-on-surface">Japan vs Croatia</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Bet: 250 pts • Outcome: Lost</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-score-display text-[24px] leading-tight text-error-container">0</span>
+<span class="text-[10px] uppercase font-bold text-error-container tracking-widest">Settled</span>
+</div>
+</div>
+<!-- History Item 4: WIN (Platinum Feel) -->
+<div class="platinum-card rounded-xl p-4 flex items-center justify-between border-l-4 border-secondary-container shadow-xl">
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md text-inverse-on-surface font-bold">Portugal vs Italy</span>
+<span class="text-label-sm font-label-sm text-inverse-on-surface/70 italic">Final Bonus Bet • 2,000 pts</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-score-display text-[24px] leading-tight text-[#053900]">+5,000</span>
+<span class="text-[10px] uppercase font-bold text-[#053900] tracking-widest">Jackpot</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-surface-container/90 backdrop-blur-lg border-t border-white/5 rounded-t-xl shadow-[0_-4px_24px_rgba(0,0,0,0.5)] flex justify-around items-center h-20 px-4 pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant opacity-60 active:scale-90 transition-all duration-300 ease-out hover:text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant opacity-60 active:scale-90 transition-all duration-300 ease-out hover:text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="grade">grade</span>
+<span class="font-label-sm text-label-sm">My Rankings</span>
+</a>
+<!-- Active Tab: Standings (closest mapping for games/betting) -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary bg-secondary/10 rounded-full px-4 py-1 ring-1 ring-secondary/50 shadow-[0_0_12px_rgba(47,248,1,0.3)] active:scale-90 transition-all duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-sm text-label-sm">Standings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant opacity-60 active:scale-90 transition-all duration-300 ease-out hover:text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for match cards
+        document.querySelectorAll('.glass-card button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                const ripple = document.createElement('div');
+                ripple.classList.add('ripple');
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+
+        // Add subtle parallax tilt to match cards on scroll
+        window.addEventListener('scroll', () => {
+            const cards = document.querySelectorAll('.glass-card');
+            const scrolled = window.scrollY;
+            cards.forEach((card, index) => {
+                const speed = 0.05;
+                const yPos = (scrolled * speed * (index % 2 === 0 ? 1 : -1));
+                // Subtle movement
+                // card.style.transform = `translateY(${yPos * 0.1}px)`;
+            });
+        });
+    </script>
+</body></html>
+
+<!-- Upcoming Games & History -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Betting Arena | Family Clash 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#2ff801",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-bright": "#393939",
+                    "inverse-on-surface": "#313030",
+                    "secondary-fixed-dim": "#2ae500",
+                    "primary-fixed": "#ffd7f5",
+                    "surface-container-high": "#2a2a2a",
+                    "surface-container-low": "#1c1b1b",
+                    "surface-variant": "#353534",
+                    "surface-container": "#201f1f",
+                    "on-tertiary": "#3a3000",
+                    "background": "#131313",
+                    "primary-container": "#ff00ff",
+                    "on-primary-fixed": "#380038",
+                    "on-primary": "#5b005b",
+                    "tertiary-container": "#c8a900",
+                    "on-secondary-fixed-variant": "#095300",
+                    "on-tertiary-fixed-variant": "#544600",
+                    "inverse-primary": "#a900a9",
+                    "primary": "#ffabf3",
+                    "on-tertiary-fixed": "#221b00",
+                    "on-secondary-container": "#0f6d00",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-error": "#690005",
+                    "error": "#ffb4ab",
+                    "on-secondary": "#053900",
+                    "on-surface": "#e5e2e1",
+                    "on-secondary-fixed": "#022100",
+                    "on-background": "#e5e2e1",
+                    "on-surface-variant": "#dcbed4",
+                    "surface-dim": "#131313",
+                    "secondary": "#d7ffc5",
+                    "error-container": "#93000a",
+                    "secondary-fixed": "#79ff5b",
+                    "tertiary-fixed-dim": "#e9c400",
+                    "outline": "#a4899d",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed-variant": "#810081",
+                    "on-primary-container": "#510051",
+                    "surface-container-highest": "#353534",
+                    "surface-tint": "#ffabf3",
+                    "primary-fixed-dim": "#ffabf3",
+                    "on-tertiary-container": "#4b3e00",
+                    "tertiary-fixed": "#ffe16d",
+                    "tertiary": "#e9c400",
+                    "surface": "#131313",
+                    "outline-variant": "#564052"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "24px",
+                    "margin-mobile": "16px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "gutter": "12px",
+                    "base": "4px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Be Vietnam Pro"],
+                    "label-md": ["Be Vietnam Pro"],
+                    "headline-lg-mobile": ["Oswald"],
+                    "body-md": ["Be Vietnam Pro"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "score-display": ["Oswald"],
+                    "display-lg": ["Oswald"],
+                    "headline-lg": ["Oswald"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "34px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "score-display": ["40px", {"lineHeight": "40px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>body {
+    background-color: #131313;
+    color: #e5e2e1;
+    -webkit-tap-highlight-color: transparent
+    }
+.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08)
+    }
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 255, 0.6);
+        } 70% {
+        box-shadow: 0 0 0 15px rgba(255, 0, 255, 0);
+        } 100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 255, 0);
+        }
+    }
+.animate-bet-pulse {
+    animation: pulse-glow 2s infinite
+    }
+.noise-bg {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuATmx-CSA0gDybpNCFN0pBfH2yqMpYGxWc16KlP6p00X4nP2IHYOTgdh9zZ7J06taDhnakpXaPlRaVIiu86VcdYAHuZ9InXpPXsTXyePeOMHlJ2gVSI34MhFji5b5aYUp9wL461LW9OzHxwfzrh5RcaeOLt1MlKQz81s5_HmycCClcFYZB43JqyU6tl02Q_Y1opMlCRk7neDN75MGhNZcVwW1s4zbagChOwjwoO0NEUa_vKdpCrX7l6jDmdXXa_zBB1xhtmkKjGYdM3);
+    opacity: 0.03
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md antialiased overflow-x-hidden">
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-white/10 shadow-[0_0_20px_rgba(255,0,255,0.15)] flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="sports_soccer">sports_soccer</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">Family Clash 2026</h1>
+</div>
+<button class="active:scale-95 transition-transform duration-200 hover:opacity-80">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="pt-20 pb-24 px-margin-mobile min-h-screen flex flex-col gap-stack-lg">
+<!-- Match Header Section -->
+<section class="mt-4 flex flex-col items-center">
+<div class="flex items-center justify-between w-full mb-stack-sm">
+<span class="bg-secondary-container/20 text-secondary px-3 py-1 rounded-full font-label-sm text-label-sm uppercase tracking-widest border border-secondary/30 flex items-center gap-1">
+<span class="w-2 h-2 bg-secondary rounded-full animate-pulse"></span>
+                    Live Match
+                </span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">82:45'</span>
+</div>
+<div class="flex items-center justify-between w-full gap-gutter">
+<div class="flex flex-col items-center flex-1">
+<div class="w-16 h-16 rounded-full glass-card flex items-center justify-center overflow-hidden mb-2 ring-2 ring-primary/20">
+<img alt="Team A" class="w-full h-full object-cover" data-alt="A stylized, close-up digital graphic of the Brazilian flag with cinematic lighting and a subtle tech-texture overlay. The colors are deep forest green and vibrant yellow, reflecting a high-octane sporting atmosphere with electric magenta accents in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHfUSvnyg_h9RfNFHBBNS3LzJsv0Owu4XhHKHL3CcVoTTbLAe5E3_fWOCJS2wmyz32iRqVyiT0q2vv3oTimITKsmz7kTVoQmzpAmASolYB1z4jtWSmMU6AIehDc9CIH1fLZwcvoizz8bDdPYKY9YQazrz8DlLKnAEC4t_r5tGlGXNm8-hqDyv11PKZhd4KrC6eHBvU7sLG_PCj0GEqT7dgxko_pG_gWXVe_7o6KK5Qym2VfCMiD3HC4STdLOFz1LeyKMxi6lohOADF"/>
+</div>
+<span class="font-headline-lg text-headline-lg-mobile text-center">BRAZIL</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-score-display text-score-display text-primary">2 - 1</span>
+<span class="font-label-sm text-label-sm opacity-50 uppercase tracking-tighter">VERSUS</span>
+</div>
+<div class="flex flex-col items-center flex-1">
+<div class="w-16 h-16 rounded-full glass-card flex items-center justify-center overflow-hidden mb-2 ring-2 ring-primary/20">
+<img alt="Team B" class="w-full h-full object-cover" data-alt="A cinematic, high-contrast graphic representation of the German flag with a metallic, brushed texture. The scene is lit by harsh stadium floodlights, creating deep blacks and glowing reds and golds. The aesthetic is modern, sleek, and competitively charged." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF3UFNCIkLN_J9abHlPBFNNHEdCtpYcDzRqj32Jmi1fDyTWuyPJ5CXB9L7H0957O3yTtklv3DQ7VT6P1OylJR_2ONIJdRSA5my7l5P2MznrDQIajlee4NVA2NcsLNVdNVsZ3PfF4PWu5kt0wzsekG8NXs8IU2CRO_PqgTCzD6hrnjxUeBrlbS0vDt0eOJ2b1AczMLdNDT5SOslyCk23RhZAjycTpHtKRYytvRsLxUvdCnCRN-kFKetNbEvg_5doPShzOlNW3rsH-3b"/>
+</div>
+<span class="font-headline-lg text-headline-lg-mobile text-center">GERMANY</span>
+</div>
+</div>
+</section>
+<!-- Betting Interface -->
+<div class="flex flex-col gap-stack-md">
+<!-- Toggle Group -->
+<div class="grid grid-cols-2 gap-gutter">
+<button class="group relative flex flex-col items-center gap-base p-6 rounded-xl border-2 transition-all duration-300 border-white/10 bg-surface-container-low hover:border-primary/50" id="btn-team-a" onclick="selectTeam('A', 1.55)">
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-primary transition-colors">BRAZIL WINS</span>
+<span class="font-display-lg text-display-lg leading-none">1.55<span class="text-label-sm">x</span></span>
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-[.active]:opacity-100 rounded-xl transition-opacity"></div>
+</button>
+<button class="group relative flex flex-col items-center gap-base p-6 rounded-xl border-2 transition-all duration-300 border-white/10 bg-surface-container-low hover:border-secondary/50" id="btn-team-b" onclick="selectTeam('B', 2.80)">
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">GERMANY WINS</span>
+<span class="font-display-lg text-display-lg leading-none">2.80<span class="text-label-sm">x</span></span>
+<div class="absolute inset-0 bg-secondary/5 opacity-0 group-[.active]:opacity-100 rounded-xl transition-opacity"></div>
+</button>
+</div>
+<!-- Input Section -->
+<div class="glass-card p-margin-mobile rounded-xl flex flex-col gap-stack-md">
+<div class="flex justify-between items-end">
+<div class="flex flex-col gap-base">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Wager Amount</label>
+<div class="relative flex items-center">
+<span class="absolute left-0 font-display-lg text-display-lg text-primary opacity-50">$</span>
+<input class="bg-transparent border-none focus:ring-0 font-display-lg text-display-lg p-0 pl-8 w-full placeholder:opacity-20" id="bet-amount" oninput="calculatePayout()" placeholder="0" type="number" value="100"/>
+</div>
+</div>
+<div class="flex flex-col items-end gap-base">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Current Balance</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-[18px]" data-icon="monetization_on">monetization_on</span>
+<span class="font-label-md text-label-md text-on-surface">2,450.00</span>
+</div>
+</div>
+</div>
+<!-- Horizontal Rule -->
+<div class="h-px w-full bg-white/10"></div>
+<!-- Payout Display -->
+<div class="flex justify-between items-center">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Potential Payout</span>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-headline-lg text-secondary" id="payout-amount">155.00</span>
+<span class="font-label-sm text-label-sm text-secondary/60">Points</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-label-sm font-label-sm text-on-surface-variant" id="multiplier-tag">100 x 1.55x</div>
+</div>
+</div>
+</div>
+<!-- CTA -->
+<button class="w-full bg-primary-container text-on-primary-fixed font-headline-lg text-headline-lg-mobile py-5 rounded-xl animate-bet-pulse active:scale-95 transition-all duration-300 shadow-[0_0_30px_rgba(255,0,255,0.4)] uppercase">
+                Place Bet
+            </button>
+</div>
+<!-- Info Tip -->
+<div class="flex items-start gap-stack-sm p-margin-mobile bg-surface-container-high/40 rounded-xl border border-white/5">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5" data-icon="info">info</span>
+<div class="flex flex-col gap-1">
+<span class="font-label-md text-label-md text-on-surface">How it works</span>
+<p class="font-body-md text-label-sm text-on-surface-variant leading-relaxed">Multipliers are live-adjusted based on match momentum. Your payout is locked at the moment of submission. Platinum users receive 5% boost on all winning German wagers.</p>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-surface-container/90 backdrop-blur-lg border-t border-white/5 shadow-[0_-4px_24px_rgba(0,0,0,0.5)] flex justify-around items-center h-20 px-4 pb-safe">
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-secondary bg-secondary/10 rounded-full px-4 py-1 ring-1 ring-secondary/50 shadow-[0_0_12px_rgba(47,248,1,0.3)] cursor-pointer">
+<span class="material-symbols-outlined" data-icon="grade">grade</span>
+<span class="font-label-sm text-label-sm">My Rankings</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-label-sm text-label-sm">Standings</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 hover:text-secondary transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</div>
+</nav>
+<script>
+        let currentMultiplier = 1.55;
+        let activeTeam = 'A';
+
+        function selectTeam(team, multiplier) {
+            activeTeam = team;
+            currentMultiplier = multiplier;
+            
+            // UI Updates
+            const btnA = document.getElementById('btn-team-a');
+            const btnB = document.getElementById('btn-team-b');
+            
+            if(team === 'A') {
+                btnA.classList.add('active', 'border-primary', 'ring-2', 'ring-primary/20');
+                btnB.classList.remove('active', 'border-secondary', 'ring-2', 'ring-secondary/20');
+                btnA.querySelector('span:first-child').classList.add('text-primary');
+                btnB.querySelector('span:first-child').classList.remove('text-secondary');
+            } else {
+                btnB.classList.add('active', 'border-secondary', 'ring-2', 'ring-secondary/20');
+                btnA.classList.remove('active', 'border-primary', 'ring-2', 'ring-primary/20');
+                btnB.querySelector('span:first-child').classList.add('text-secondary');
+                btnA.querySelector('span:first-child').classList.remove('text-primary');
+            }
+
+            calculatePayout();
+        }
+
+        function calculatePayout() {
+            const betInput = document.getElementById('bet-amount');
+            const payoutDisplay = document.getElementById('payout-amount');
+            const multiplierTag = document.getElementById('multiplier-tag');
+            
+            let val = parseFloat(betInput.value) || 0;
+            let payout = (val * currentMultiplier).toFixed(2);
+            
+            payoutDisplay.innerText = payout;
+            multiplierTag.innerText = `${val} x ${currentMultiplier}x`;
+            
+            // Simple micro-interaction
+            payoutDisplay.classList.add('scale-110');
+            setTimeout(() => payoutDisplay.classList.remove('scale-110'), 100);
+        }
+
+        // Initialize state
+        selectTeam('A', 1.55);
+    </script>
+</body></html>

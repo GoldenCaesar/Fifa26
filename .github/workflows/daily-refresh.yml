@@ -1,0 +1,24 @@
+name: Daily Match Refresh Trigger
+
+on:
+  schedule:
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger backend daily refresh endpoint
+        env:
+          FC26_REFRESH_ENDPOINT: ${{ secrets.FC26_REFRESH_ENDPOINT }}
+          FC26_REFRESH_TOKEN: ${{ secrets.FC26_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$FC26_REFRESH_ENDPOINT" ]; then
+            echo "FC26_REFRESH_ENDPOINT is not set."
+            exit 1
+          fi
+          curl -sS -X POST "$FC26_REFRESH_ENDPOINT" \
+            -H "Authorization: Bearer $FC26_REFRESH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"source":"github-actions"}'

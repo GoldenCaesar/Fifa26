@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" class="theme-dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121212">
+  <title>Family Clash 2026</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="app.config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <section id="screen-login" class="screen screen-login active" aria-label="Login">
+      <header class="top-bar muted">
+        <h1>Family Clash 2026</h1>
+      </header>
+      <main class="login-main">
+        <div class="ambient-glow"></div>
+        <div id="logo-wrap" class="logo-wrap">
+          <div class="logo-pulse"></div>
+          <div class="football-logo" aria-hidden="true">FC26</div>
+        </div>
+        <div class="login-card">
+          <h2>Welcome to the Pitch</h2>
+          <p>Step into the arena of champions.</p>
+          <label class="md3-field">
+            <input id="handle-input" type="text" maxlength="24" autocomplete="off" required>
+            <span>Enter Your Name or Profile Handle</span>
+            <i class="material-symbols-outlined">account_circle</i>
+          </label>
+          <button id="enter-button" class="btn btn-primary">Enter <i class="material-symbols-outlined">sports_soccer</i></button>
+          <div id="login-message" class="inline-note"></div>
+        </div>
+      </main>
+      <footer class="foot-note">Tournament Season 2026</footer>
+    </section>
+
+    <section id="screen-app" class="screen screen-app" aria-label="App">
+      <header class="top-bar">
+        <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Family Clash 2026</h1></div>
+        <button class="icon-btn" id="refresh-button" title="Refresh daily data"><i class="material-symbols-outlined">autorenew</i></button>
+      </header>
+
+      <main id="main-view" class="main-view">
+        <section id="view-home" class="view active" data-view="home">
+          <article class="panel graph-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Live Standings</p>
+                <h2>Clash Projection</h2>
+              </div>
+              <div id="leader-badge" class="leader-badge">Leader</div>
+            </div>
+            <canvas id="leaderboard-canvas" width="800" height="300"></canvas>
+            <div id="leader-event" class="leader-event"></div>
+          </article>
+
+          <article class="panel bracket-panel">
+            <div class="panel-head">
+              <h3>Tournament Bracket</h3>
+            </div>
+            <div id="bracket-wrap" class="bracket-wrap"></div>
+          </article>
+        </section>
+
+        <section id="view-rankings" class="view" data-view="rankings">
+          <article class="panel score-hero">
+            <p>YOUR TOTAL SCORE</p>
+            <h2 id="total-score">0</h2>
+            <span>Points Accumulated</span>
+          </article>
+          <div class="panel-head secondary">
+            <h3>Your Top 5 Teams</h3>
+            <button id="shuffle-rankings" class="btn btn-ghost">Update Rankings</button>
+          </div>
+          <div id="team-cards" class="team-cards"></div>
+        </section>
+
+        <section id="view-standings" class="view" data-view="standings">
+          <div class="segment-tabs">
+            <button class="seg active" data-seg="bets">This Week's Bets</button>
+            <button class="seg" data-seg="groups">Group Standings</button>
+          </div>
+
+          <article id="seg-bets" class="segment active">
+            <div class="panel-head secondary"><h3>Upcoming Matches (Next 7 Days)</h3></div>
+            <div id="match-list" class="match-list"></div>
+            <div class="panel-head secondary"><h3>Community Betting Activity</h3></div>
+            <div id="community-list" class="history-list"></div>
+            <div class="panel-head secondary"><h3>Your Betting History</h3></div>
+            <div id="history-list" class="history-list"></div>
+          </article>
+
+          <article id="seg-groups" class="segment">
+            <div id="group-list" class="group-list"></div>
+          </article>
+        </section>
+
+        <section id="view-settings" class="view" data-view="settings">
+          <article class="panel">
+            <h3>Admin Settings</h3>
+            <p class="inline-note">Save provider and realtime credentials here. Data is stored locally on this device.</p>
+            <form id="settings-form" class="settings-form">
+              <label>Data Provider
+                <select name="provider">
+                  <option value="mock">Mock Provider</option>
+                  <option value="odds-api">The Odds API</option>
+                  <option value="api-football">API-Football</option>
+                </select>
+              </label>
+              <label>Provider API Key
+                <input name="apiKey" type="text" placeholder="Enter API key">
+              </label>
+              <label>Canonical Timezone
+                <input name="timezone" type="text" placeholder="UTC" value="UTC">
+              </label>
+              <label>Market Visibility
+                <select name="marketVisibility">
+                  <option value="aggregate">Aggregate totals only</option>
+                  <option value="exact">Exact wagers and user handles</option>
+                </select>
+              </label>
+              <label>Max Active Bets Per Match (Per User)
+                <input name="maxActiveBetsPerMatch" type="number" min="1" step="1" value="1">
+              </label>
+              <label>Supabase URL
+                <input name="supabaseUrl" type="text" placeholder="https://your-project.supabase.co">
+              </label>
+              <label>Supabase Anon Key
+                <input name="supabaseAnon" type="text" placeholder="anon public key">
+              </label>
+              <button class="btn btn-primary" type="submit">Save Settings</button>
+            </form>
+            <div id="settings-status" class="inline-note"></div>
+          </article>
+        </section>
+      </main>
+
+      <nav class="bottom-nav">
+        <button class="nav-item active" data-target="home"><i class="material-symbols-outlined">home</i><span>Home</span></button>
+        <button class="nav-item" data-target="rankings"><i class="material-symbols-outlined">grade</i><span>My Rankings</span></button>
+        <button class="nav-item" data-target="standings"><i class="material-symbols-outlined">account_tree</i><span>Standings</span></button>
+        <button class="nav-item" data-target="settings"><i class="material-symbols-outlined">settings</i><span>Settings</span></button>
+      </nav>
+
+      <footer class="status-footer" aria-live="polite">
+        <span id="supabase-dot" class="status-dot offline"></span>
+        <span id="supabase-status">Supabase: Disconnected</span>
+      </footer>
+    </section>
+  </div>
+</body>
+</html>
