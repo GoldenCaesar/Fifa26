@@ -106,18 +106,8 @@
         <section id="view-settings" class="view" data-view="settings">
           <article class="panel">
             <h3>Admin Settings</h3>
-            <p class="inline-note">Save provider and realtime credentials here. Data is stored locally on this device.</p>
+            <p class="inline-note">App settings stored locally on this device. Odds are fetched server-side via Supabase Edge Function.</p>
             <form id="settings-form" class="settings-form">
-              <label>Data Provider
-                <select name="provider">
-                  <option value="mock">Mock Provider</option>
-                  <option value="odds-api">The Odds API</option>
-                  <option value="api-football">API-Football</option>
-                </select>
-              </label>
-              <label>Provider API Key
-                <input name="apiKey" type="text" placeholder="Enter API key">
-              </label>
               <label>Canonical Timezone
                 <input name="timezone" type="text" placeholder="UTC" value="UTC">
               </label>

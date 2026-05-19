@@ -6,8 +6,6 @@ const STORAGE_KEYS = {
 const BOOTSTRAP_CONFIG = window.FC26_BOOTSTRAP || {};
 
 const DEFAULT_CONFIG = {
-  provider: BOOTSTRAP_CONFIG.provider || "mock",
-  apiKey: BOOTSTRAP_CONFIG.apiKey || "",
   timezone: BOOTSTRAP_CONFIG.timezone || "UTC",
   marketVisibility: BOOTSTRAP_CONFIG.marketVisibility || "aggregate",
   maxActiveBetsPerMatch: BOOTSTRAP_CONFIG.maxActiveBetsPerMatch || 1,
@@ -130,8 +128,6 @@ function wireSettings() {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const payload = new FormData(form);
-    state.config.provider = payload.get("provider") || "mock";
-    state.config.apiKey = payload.get("apiKey") || "";
     state.config.timezone = payload.get("timezone") || "UTC";
     state.config.marketVisibility = payload.get("marketVisibility") || "aggregate";
     state.config.maxActiveBetsPerMatch = Math.max(1, Number(payload.get("maxActiveBetsPerMatch") || 1));
@@ -145,8 +141,6 @@ function wireSettings() {
 
 function hydrateSettingsForm() {
   const form = document.getElementById("settings-form");
-  form.provider.value = state.config.provider;
-  form.apiKey.value = state.config.apiKey;
   form.timezone.value = state.config.timezone;
   form.marketVisibility.value = state.config.marketVisibility;
   form.maxActiveBetsPerMatch.value = state.config.maxActiveBetsPerMatch;
@@ -223,6 +217,11 @@ async function refreshScheduleWindow(now) {
   const newDay = dayKeys[6];
   if (!rolled[newDay]) {
     rolled[newDay] = await fetchMatchesForDay(newDay);
+  } else {
+    // Always use cached odds if available
+    if (state.data.cache && state.data.cache.oddsByDay && state.data.cache.oddsByDay[newDay]) {
+      rolled[newDay] = state.data.cache.oddsByDay[newDay];
+    }
   }
 
   state.data.cache.daySchedules = rolled;
@@ -235,6 +234,13 @@ function lockTodaysMatches(todayYmd) {
       match.status = "locked";
     }
   });
+  // Also lock in the odds cache for today
+  if (state.data.cache && state.data.cache.oddsByDay && state.data.cache.oddsByDay[todayYmd]) {
+    state.data.cache.oddsByDay[todayYmd].forEach((match) => {
+      if (match.status === "open") match.status = "locked";
+    });
+    persistState();
+  }
 }
 
 function settleYesterdayBets(todayYmd) {
@@ -709,75 +715,60 @@ function publishRealtime(type, payload) {
 }
 
 async function fetchMatchesForDay(dayYmd) {
-  if (state.config.provider === "mock") {
-    return generateMockMatches(dayYmd);
+  // Check if odds for this day are already cached locally
+  if (state.data.cache && state.data.cache.oddsByDay && state.data.cache.oddsByDay[dayYmd]) {
+    return state.data.cache.oddsByDay[dayYmd];
   }
 
-  if (!state.config.apiKey) {
-    return generateMockMatches(dayYmd);
+  let matches;
+  
+  // If Supabase is connected, fetch from database (server has already fetched from APIs)
+  if (state.supabase) {
+    try {
+      const { data, error } = await state.supabase
+        .from("matches")
+        .select("*")
+        .eq("day", dayYmd);
+      
+      if (!error && data && data.length > 0) {
+        // Convert database format to app format
+        matches = data.map(convertDbMatchToApp);
+      } else {
+        // Fallback to mock if no data in database
+        matches = generateMockMatches(dayYmd);
+      }
+    } catch {
+      matches = generateMockMatches(dayYmd);
+    }
+  } else {
+    // No Supabase connection - use mock data
+    matches = generateMockMatches(dayYmd);
   }
 
-  try {
-    if (state.config.provider === "odds-api") {
-      return await fetchFromOddsApi(dayYmd);
-    }
-    if (state.config.provider === "api-football") {
-      return await fetchFromApiFootball(dayYmd);
-    }
-  } catch {
-    return generateMockMatches(dayYmd);
-  }
-
-  return generateMockMatches(dayYmd);
+  // Cache odds for this day (avoid repeated database queries)
+  if (!state.data.cache.oddsByDay) state.data.cache.oddsByDay = {};
+  state.data.cache.oddsByDay[dayYmd] = matches;
+  persistState();
+  return matches;
 }
 
-async function fetchFromOddsApi(dayYmd) {
-  const url = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${encodeURIComponent(
-    state.config.apiKey
-  )}&regions=eu&markets=h2h`;
-
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Odds API failed");
-  const data = await response.json();
-
-  return data
-    .slice(0, 6)
-    .map((item, idx) => mapProviderMatch(item.home_team, item.away_team, dayYmd, idx, item.bookmakers?.[0]?.markets?.[0]?.outcomes));
-}
-
-async function fetchFromApiFootball(dayYmd) {
-  const url = `https://v3.football.api-sports.io/fixtures?date=${encodeURIComponent(dayYmd)}`;
-  const response = await fetch(url, {
-    headers: {
-      "x-apisports-key": state.config.apiKey
-    }
-  });
-  if (!response.ok) throw new Error("API Football failed");
-  const data = await response.json();
-
-  return (data.response || []).slice(0, 6).map((item, idx) => {
-    const home = item.teams?.home?.name || TEAM_POOL[(idx * 2) % TEAM_POOL.length];
-    const away = item.teams?.away?.name || TEAM_POOL[(idx * 2 + 1) % TEAM_POOL.length];
-    return mapProviderMatch(home, away, dayYmd, idx);
-  });
-}
-
-function mapProviderMatch(home, away, dayYmd, idx, outcomes) {
-  const homeOdds = outcomes?.find((x) => x.name === home)?.price || (Math.random() * 1.5 + 0.5);
-  const awayOdds = outcomes?.find((x) => x.name === away)?.price || (Math.random() * 1.5 + 0.5);
-
+function convertDbMatchToApp(dbMatch) {
   return {
-    id: `m_${dayYmd}_${idx}_${slug(home)}_${slug(away)}`,
-    day: dayYmd,
-    time: `${String(12 + (idx % 8)).padStart(2, "0")}:00`,
-    home,
-    away,
+    id: dbMatch.id,
+    day: dbMatch.day,
+    time: dbMatch.kickoff_time,
+    home: dbMatch.home_team,
+    away: dbMatch.away_team,
     odds: {
-      home: Number(homeOdds),
-      away: Number(awayOdds)
+      home: Number(dbMatch.odds_home),
+      away: Number(dbMatch.odds_away)
     },
-    status: "open",
-    result: null
+    status: dbMatch.status,
+    result: dbMatch.winner ? {
+      winner: dbMatch.winner,
+      homeScore: dbMatch.result_home,
+      awayScore: dbMatch.result_away
+    } : null
   };
 }
 
@@ -876,7 +867,8 @@ function createInitialState() {
       daySchedules: {},
       lastRefreshYmd: "",
       lastRefreshedAt: "",
-      lastLeader: ""
+      lastLeader: "",
+      oddsByDay: {} // Add odds cache
     }
   };
 }

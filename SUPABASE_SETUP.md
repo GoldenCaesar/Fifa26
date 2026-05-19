@@ -1,44 +1,49 @@
-# Supabase Setup (Complete Remaining Notes)
+# Supabase Setup Guide
 
-Use this to complete shared multi-user persistence with your existing Supabase account.
+Complete guide for setting up the multi-user backend with Supabase.
 
 ## 1. Create project artifacts
 
 1. Open Supabase project SQL editor.
 2. Run [supabase/schema.sql](supabase/schema.sql).
-3. Confirm tables were created: `users`, `matches`, `bets`, `cache_metadata`.
+3. Confirm tables were created: `users`, `matches`, `bets`, `cache_metadata`, `app_settings`.
 
-## 2. Configure app settings
+## 2. Deploy Edge Function (REQUIRED for production)
 
-In app Settings screen:
+**Important:** The Edge Function fetches odds server-side to keep API keys secure and stay within rate limits.
 
-1. Set `Supabase URL` and `Supabase Anon Key`.
-2. Set `Market Visibility` to `aggregate` or `exact`.
-3. Set `Max Active Bets Per Match` (recommended `1`).
-4. Save settings.
+Follow the complete guide: [Edge Function Deployment](EDGE_FUNCTION_DEPLOYMENT.md)
 
-## 3. Provider setup (optional)
+Quick steps:
+1. Install Supabase CLI: `npm install -g supabase`
+2. Link project: `supabase link --project-ref pztzduvkbnrutgotdown`
+3. Deploy function: `supabase functions deploy daily-refresh`
+4. Set secrets (API keys, tokens)
+5. Configure GitHub Actions for daily cron
 
-If you want live odds instead of mock mode:
+## 3. Test the setup
 
-1. Choose provider `odds-api` or `api-football`.
-2. Paste provider API key.
-3. Save settings.
+1. Log into your app
+2. Click the refresh button
+3. Verify matches appear with real odds
+4. Check Supabase database for populated `matches` table
 
 ## 4. Daily refresh scheduler
 
-A cron workflow exists at [daily refresh workflow](.github/workflows/daily-refresh.yml).
+A cron workflow exists at [.github/workflows/daily-refresh.yml](.github/workflows/daily-refresh.yml).
 
-Set GitHub repository secrets:
+After deploying the Edge Function, set these GitHub repository secrets:
 
-1. `FC26_REFRESH_ENDPOINT`: HTTPS endpoint for your backend refresh function.
-2. `FC26_REFRESH_TOKEN`: bearer token expected by that endpoint.
+1. `FC26_REFRESH_ENDPOINT`: Your Edge Function URL  
+   (e.g., `https://pztzduvkbnrutgotdown.supabase.co/functions/v1/daily-refresh`)
+2. `FC26_REFRESH_TOKEN`: Secure token for authentication
 
-You can host this endpoint as a Supabase Edge Function.
+This triggers the Edge Function daily at 2:15 AM UTC to fetch new odds.
 
 ## 5. Suggested next hardening
 
 1. Replace open RLS policies with user-scoped policies.
-2. Move all bet placement and settlement calculations to backend RPC/functions only.
+2. Move bet placement and settlement calculations to backend RPC/functions only.
 3. Add audit log table for immutable settlement history.
-4. Add rate limiting at backend endpoint.
+4. Add rate limiting at Edge Function endpoint.
+5. Implement proper user authentication (currently handle-based only).

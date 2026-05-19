@@ -35,16 +35,14 @@ Then open `http://localhost:8080`.
 
 ## Optional live data providers
 
-Configure in the app Settings tab:
+Odds are fetched **server-side** via Supabase Edge Function to:
+- Keep API keys secure (never exposed to browser)
+- Stay within API rate limits (500/month for Odds API)
+- Fetch odds once per day automatically
 
-- Provider: `mock`, `odds-api`, or `api-football`
-- API key for selected provider
-- Canonical timezone (default `UTC`)
+See [Edge Function Deployment Guide](EDGE_FUNCTION_DEPLOYMENT.md) for setup instructions.
 
-Notes:
-
-- API keys saved in browser local storage (client side).
-- For production security, move provider requests to a backend proxy or edge function.
+The app reads odds from the Supabase `matches` table and caches locally for performance.
 
 ## Optional Supabase realtime
 
