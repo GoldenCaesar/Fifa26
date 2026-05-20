@@ -729,7 +729,10 @@ function settleYesterdayBets(todayYmd) {
     });
 }
 
-function recomputeLeaderboard() {  // Sync all user rankings with current team stats  syncUserRankingsWithTeamStats();}
+function recomputeLeaderboard() {
+  // Sync all user rankings with current team stats
+  syncUserRankingsWithTeamStats();
+}
 
 function renderApp() {
   if (!state.data.currentUser) return;
@@ -1584,3 +1587,4 @@ function shuffle(list) {
   }
   return copy;
 }
+
