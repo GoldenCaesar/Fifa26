@@ -34,22 +34,6 @@ const GROUPS = {
   "Group C": ["Spain", "Portugal", "Italy", "Croatia"]
 };
 
-// FIFA World Cup 2026 - Official Groups (48 teams, 12 groups)
-const WC_2026_GROUPS = {
-  "A": ["USA", "Mexico", "Canada", "Jamaica"],
-  "B": ["Brazil", "Argentina", "Colombia", "Ecuador"],
-  "C": ["England", "France", "Germany", "Netherlands"],
-  "D": ["Spain", "Portugal", "Italy", "Belgium"],
-  "E": ["Japan", "South Korea", "Australia", "Iran"],
-  "F": ["Morocco", "Egypt", "Nigeria", "Cameroon"],
-  "G": ["Croatia", "Denmark", "Norway", "Sweden"],
-  "H": ["Uruguay", "Chile", "Paraguay", "Peru"],
-  "I": ["Poland", "Ukraine", "Austria", "Czech Republic"],
-  "J": ["Saudi Arabia", "Qatar", "Jordan", "Iraq"],
-  "K": ["Ghana", "Ivory Coast", "Senegal", "Algeria"],
-  "L": ["Costa Rica", "Honduras", "Panama", "New Zealand"]
-};
-
 // Full FIFA World Cup 2026 team roster (alphabetical)
 const WC_TEAMS = [
   "Albania", "Algeria", "Argentina", "Australia", "Austria",
@@ -246,11 +230,6 @@ async function loginByHandle(handle) {
     user = createNewUser(handle);
     users.push(user);
     state.data.leaderboard.push({ userId: user.id, history: seedHistory() });
-    
-    // Sync new user to Supabase
-    syncUserToSupabase(user).catch(err => {
-      console.warn("Failed to sync user to Supabase:", err);
-    });
   }
 
   state.data.currentUser = user.id;
@@ -318,170 +297,13 @@ function renderAdminPanel() {
 }
 
 function deleteUser(userId) {
-  const userToDelete = state.data.users.find(u => u.id === userId);
   state.data.users = state.data.users.filter((u) => u.id !== userId);
   state.data.leaderboard = state.data.leaderboard.filter((row) => row.userId !== userId);
   state.data.bets = state.data.bets.filter((bet) => bet.userId !== userId);
   persistState();
-  
-  // Delete from Supabase if connected
-  if (userToDelete) {
-    deleteUserFromSupabase(userToDelete.handle).catch(err => {
-      console.warn("Failed to delete user from Supabase:", err);
-    });
-  }
-  
   renderAdminPanel();
   renderHomeGraph(false);
 }
-
-// ── Supabase User Sync ────────────────────────────────
-
-async function syncUserToSupabase(user) {
-  if (!state.supabase) return;
-  
-  try {
-    // Check if user already exists
-    const { data: existing } = await state.supabase
-      .from('users')
-      .select('handle')
-      .eq('handle', user.handle)
-      .maybeSingle();
-    
-    if (existing) {
-      // Update existing user
-      const { error } = await state.supabase
-        .from('users')
-        .update({
-          balance: user.balance,
-          total_score: user.totalScore
-        })
-        .eq('handle', user.handle);
-      
-      if (error) console.warn('Supabase user update failed:', error);
-    } else {
-      // Insert new user
-      const { error } = await state.supabase
-        .from('users')
-        .insert({
-          handle: user.handle,
-          balance: user.balance,
-          total_score: user.totalScore
-        });
-      
-      if (error) console.warn('Supabase user insert failed:', error);
-    }
-  } catch (err) {
-    console.warn('Supabase sync error:', err);
-  }
-}
-
-async function deleteUserFromSupabase(handle) {
-  if (!state.supabase) return;
-  
-  try {
-    const { error } = await state.supabase
-      .from('users')
-      .delete()
-      .eq('handle', handle);
-    
-    if (error) console.warn('Supabase user deletion failed:', error);
-  } catch (err) {
-    console.warn('Supabase delete error:', err);
-  }
-}
-
-async function loadUsersFromSupabase() {
-  if (!state.supabase) return;
-  
-  try {
-    const { data: dbUsers, error } = await state.supabase
-      .from('users')
-      .select('*');
-    
-    if (error) {
-      console.warn('Failed to load users from Supabase:', error);
-      return;
-    }
-    
-    if (dbUsers && dbUsers.length > 0) {
-      // Merge Supabase users with local users (local takes precedence)
-      dbUsers.forEach(dbUser => {
-        const existingUser = state.data.users.find(u => u.handle === dbUser.handle);
-        if (!existingUser) {
-          // Add user from Supabase if not in local storage
-          const newUser = createNewUser(dbUser.handle);
-          newUser.balance = dbUser.balance;
-          newUser.totalScore = dbUser.total_score;
-          state.data.users.push(newUser);
-        }
-      });
-      persistState();
-    }
-  } catch (err) {
-    console.warn('Error loading users from Supabase:', err);
-  }
-}
-
-// ── Team Stats Management ────────────────────────────────
-
-function initializeTeamStats() {
-  const stats = {};
-  WC_TEAMS.forEach(team => {
-    stats[team] = { goals: 0, wins: 0, draws: 0, losses: 0 };
-  });
-  return stats;
-}
-
-function updateTeamStatsFromMatch(match) {
-  if (!match.result || !state.data.teamStats) return;
-  
-  const homeTeam = match.home;
-  const awayTeam = match.away;
-  const result = match.result;
-  
-  if (!state.data.teamStats[homeTeam]) {
-    state.data.teamStats[homeTeam] = { goals: 0, wins: 0, draws: 0, losses: 0 };
-  }
-  if (!state.data.teamStats[awayTeam]) {
-    state.data.teamStats[awayTeam] = { goals: 0, wins: 0, draws: 0, losses: 0 };
-  }
-  
-  state.data.teamStats[homeTeam].goals += result.home;
-  state.data.teamStats[awayTeam].goals += result.away;
-  
-  if (result.winner === homeTeam) {
-    state.data.teamStats[homeTeam].wins += 1;
-    state.data.teamStats[awayTeam].losses += 1;
-  } else if (result.winner === awayTeam) {
-    state.data.teamStats[awayTeam].wins += 1;
-    state.data.teamStats[homeTeam].losses += 1;
-  } else {
-    state.data.teamStats[homeTeam].draws += 1;
-    state.data.teamStats[awayTeam].draws += 1;
-  }
-}
-
-function syncUserRankingsWithTeamStats() {
-  if (!state.data.teamStats) {
-    state.data.teamStats = initializeTeamStats();
-  }
-  
-  state.data.users.forEach(user => {
-    if (!user.rankings || user.rankings.length === 0) return;
-    
-    user.rankings.forEach(ranking => {
-      const teamStats = state.data.teamStats[ranking.team];
-      if (teamStats) {
-        ranking.goals = teamStats.goals;
-        ranking.wins = teamStats.wins;
-      }
-    });
-    
-    user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
-  });
-}
-
 
 // ── Picks screen ─────────────────────────────────────────
 
@@ -614,18 +436,13 @@ function lockUserPicks() {
     team,
     rank: index + 1,
     rankBonus: 6 - (index + 1),
-    goals: 0,
-    wins: 0
+    goals: 6 + Math.floor(Math.random() * 8),
+    wins: 2 + Math.floor(Math.random() * 6)
   }));
   user.picksLocked = true;
   user.pendingPicks = [];
   user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
   persistState();
-  
-  // Sync user picks to Supabase
-  syncUserToSupabase(user).catch(err => {
-    console.warn("Failed to sync picks to Supabase:", err);
-  });
 
   document.getElementById("screen-picks").classList.remove("active");
   enterApp();
@@ -693,8 +510,6 @@ function settleYesterdayBets(todayYmd) {
     if (!match.result) {
       match.result = randomResult(match.home, match.away);
       match.status = "final";
-      // Update team stats from match result
-      updateTeamStatsFromMatch(match);
     }
   });
 
@@ -729,7 +544,17 @@ function settleYesterdayBets(todayYmd) {
     });
 }
 
-function recomputeLeaderboard() {  // Sync all user rankings with current team stats  syncUserRankingsWithTeamStats();}
+function recomputeLeaderboard() {
+  state.data.leaderboard.forEach((row) => {
+    const user = state.data.users.find((entry) => entry.id === row.userId);
+    if (!user) return;
+
+    const last = row.history[row.history.length - 1] || 100;
+    const gain = Math.max(4, Math.round((user.totalScore / 1000) * Math.random() * 20));
+    row.history.push(last + gain);
+    if (row.history.length > 20) row.history.shift();
+  });
+}
 
 function renderApp() {
   if (!state.data.currentUser) return;
@@ -747,53 +572,35 @@ function renderHomeGraph(withBurst) {
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const users = state.data.users.filter(u => u.picksLocked);
+  const rows = state.data.leaderboard;
   const colors = ["#ff00ff", "#39ff14", "#ffd700", "#8fb7ff", "#ff955e"];
 
+  const maxVal = Math.max(...rows.flatMap((row) => row.history), 100);
+  const minVal = Math.min(...rows.flatMap((row) => row.history), 0);
+
   ctx.clearRect(0, 0, width, height);
-  
-  if (users.length === 0) return;
-  
-  // Sort by score descending
-  const sorted = [...users].sort((a, b) => b.totalScore - a.totalScore);
-  const maxScore = Math.max(...sorted.map(u => u.totalScore), 100);
-  
-  const barWidth = (width - 60) / sorted.length;
-  const padding = 15;
-  
+  drawGrid(ctx, width, height);
+
   let top = { userId: null, score: -Infinity };
-  
-  sorted.forEach((user, index) => {
-    const color = colors[index % colors.length];
-    const barHeight = (user.totalScore / maxScore) * (height - 80);
-    const x = padding + index * barWidth + barWidth * 0.1;
-    const y = height - barHeight - 40;
-    const w = barWidth * 0.8;
-    
-    // Draw bar
-    ctx.fillStyle = color;
-    ctx.shadowBlur = 8;
+
+  rows.forEach((row, rowIndex) => {
+    const color = colors[rowIndex % colors.length];
+    ctx.beginPath();
+    row.history.forEach((point, index) => {
+      const x = (index / Math.max(row.history.length - 1, 1)) * (width - 30) + 15;
+      const y = height - ((point - minVal) / Math.max(maxVal - minVal, 1)) * (height - 30) - 15;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = row.userId === state.data.currentUser ? 4 : 2.6;
+    ctx.shadowBlur = 11;
     ctx.shadowColor = color;
-    ctx.fillRect(x, y, w, barHeight);
-    
-    // Draw score label
-    ctx.fillStyle = "#fff";
-    ctx.shadowBlur = 0;
-    ctx.font = "bold 11px 'Be Vietnam Pro'";
-    ctx.textAlign = "center";
-    ctx.fillText(user.totalScore.toLocaleString(), x + w / 2, y - 5);
-    
-    // Draw player name
-    ctx.font = "600 10px 'Be Vietnam Pro'";
-    ctx.fillStyle = user.id === state.data.currentUser ? color : "#a8a0ad";
-    ctx.save();
-    ctx.translate(x + w / 2, height - 10);
-    ctx.rotate(-Math.PI / 4);
-    ctx.fillText(user.handle, 0, 0);
-    ctx.restore();
-    
-    if (user.totalScore > top.score) {
-      top = { userId: user.id, score: user.totalScore };
+    ctx.stroke();
+
+    const current = row.history[row.history.length - 1] || 0;
+    if (current > top.score) {
+      top = { userId: row.userId, score: current };
     }
   });
 
@@ -809,7 +616,6 @@ function renderHomeGraph(withBurst) {
 
   persistState();
 }
-
 
 function renderBracket() {
   const wrap = document.getElementById("bracket-wrap");
@@ -1142,11 +948,6 @@ async function testSupabaseConnection() {
     }
 
     setSupabaseIndicator(true, "Supabase: Connected");
-    
-    // Load users from Supabase after successful connection
-    loadUsersFromSupabase().catch(err => {
-      console.warn("Failed to load users from Supabase:", err);
-    });
   } catch {
     setSupabaseIndicator(false, "Supabase: Unreachable");
   }
@@ -1231,13 +1032,6 @@ function convertDbMatchToApp(dbMatch) {
 }
 
 function generateMockMatches(dayYmd) {
-  // Use real World Cup 2026 schedule if date matches
-  const realMatches = getWorldCup2026Matches(dayYmd);
-  if (realMatches && realMatches.length > 0) {
-    return realMatches;
-  }
-  
-  // Fallback to random matches for testing dates outside the tournament
   const matches = [];
   for (let i = 0; i < 4; i += 1) {
     const home = TEAM_POOL[(i * 2 + dayYmd.charCodeAt(9)) % TEAM_POOL.length];
@@ -1257,125 +1051,6 @@ function generateMockMatches(dayYmd) {
       result: null
     });
   }
-  return matches;
-}
-
-// ── World Cup 2026 Real Schedule ────────────────────────────────
-
-function getWorldCup2026Matches(dayYmd) {
-  const allMatches = generateWorldCup2026Schedule();
-  return allMatches.filter(match => match.day === dayYmd);
-}
-
-function generateWorldCup2026Schedule() {
-  const matches = [];
-  let matchId = 0;
-  
-  // GROUP STAGE: June 11-26, 2026 (72 matches total)
-  Object.entries(WC_2026_GROUPS).forEach(([groupLetter, teams]) => {
-    // Each group plays 6 matches (round-robin)
-    const groupMatches = [
-      { home: teams[0], away: teams[1] },
-      { home: teams[2], away: teams[3] },
-      { home: teams[0], away: teams[2] },
-      { home: teams[1], away: teams[3] },
-      { home: teams[3], away: teams[0] },
-      { home: teams[1], away: teams[2] },
-    ];
-    
-    groupMatches.forEach((match, idx) => {
-      const dayOffset = Math.floor(matchId / 8); // 8 matches per day
-      const slotInDay = matchId % 8;
-      const matchTime = ["11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "11:00", "13:00"][slotInDay];
-      const date = shiftYmd("2026-06-11", dayOffset);
-      
-      matches.push({
-        id: `wc2026_gs_${groupLetter}${idx}`,
-        day: date,
-        time: matchTime,
-        home: match.home,
-        away: match.away,
-        group: `Group ${groupLetter}`,
-        round: "Group Stage",
-        odds: {
-          home: Number((1.5 + Math.random() * 1.0).toFixed(2)),
-          away: Number((1.5 + Math.random() * 1.0).toFixed(2))
-        },
-        status: "scheduled",
-        result: null
-      });
-      
-      matchId++;
-    });
-  });
-  
-  // ROUND OF 32: June 28-30, 2026 (16 matches)
-  const r32Dates = ["2026-06-28", "2026-06-28", "2026-06-29", "2026-06-29", 
-                    "2026-06-29", "2026-06-29", "2026-06-30", "2026-06-30",
-                    "2026-06-30", "2026-06-30", "2026-06-28", "2026-06-28",
-                    "2026-06-29", "2026-06-29", "2026-06-30", "2026-06-30"];
-  const r32Times = ["15:00", "19:00", "15:00", "19:00", "15:00", "19:00", "15:00", "19:00",
-                    "15:00", "19:00", "11:00", "13:00", "11:00", "13:00", "11:00", "13:00"];
-  
-  for (let i = 0; i < 16; i++) {
-    matches.push({
-      id: `wc2026_r32_${i}`,
-      day: r32Dates[i],
-      time: r32Times[i],
-      home: "TBD",
-      away: "TBD",
-      round: "Round of 32",
-      matchup: `R32-${i + 1}`,
-      odds: { home: 2.0, away: 2.0 },
-      status: "scheduled",
-      result: null
-    });
-  }
-  
-  // ROUND OF 16: July 2-5, 2026 (8 matches)
-  const r16Dates = ["2026-07-02", "2026-07-02", "2026-07-03", "2026-07-03",
-                    "2026-07-04", "2026-07-04", "2026-07-05", "2026-07-05"];
-  const r16Times = ["15:00", "19:00", "15:00", "19:00", "15:00", "19:00", "15:00", "19:00"];
-  
-  for (let i = 0; i < 8; i++) {
-    matches.push({
-      id: `wc2026_r16_${i}`,
-      day: r16Dates[i],
-      time: r16Times[i],
-      home: "TBD",
-      away: "TBD",
-      round: "Round of 16",
-      matchup: `R16-${i + 1}`,
-      odds: { home: 2.0, away: 2.0 },
-      status: "scheduled",
-      result: null
-    });
-  }
-  
-  // QUARTERFINALS: July 8-9, 2026 (4 matches)
-  matches.push(
-    { id: "wc2026_qf_1", day: "2026-07-08", time: "15:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF1", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_qf_2", day: "2026-07-08", time: "19:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF2", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_qf_3", day: "2026-07-09", time: "15:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF3", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_qf_4", day: "2026-07-09", time: "19:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF4", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
-  );
-  
-  // SEMIFINALS: July 12-13, 2026 (2 matches)
-  matches.push(
-    { id: "wc2026_sf_1", day: "2026-07-12", time: "19:00", home: "TBD", away: "TBD", round: "Semifinals", matchup: "SF1", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_sf_2", day: "2026-07-13", time: "19:00", home: "TBD", away: "TBD", round: "Semifinals", matchup: "SF2", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
-  );
-  
-  // THIRD PLACE: July 17, 2026
-  matches.push(
-    { id: "wc2026_3rd", day: "2026-07-17", time: "15:00", home: "TBD", away: "TBD", round: "Third Place", matchup: "3rd Place", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
-  );
-  
-  // FINAL: July 19, 2026
-  matches.push(
-    { id: "wc2026_final", day: "2026-07-19", time: "19:00", home: "TBD", away: "TBD", round: "Final", matchup: "Final", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
-  );
-  
   return matches;
 }
 
@@ -1452,9 +1127,8 @@ function createInitialState() {
       lastRefreshYmd: "",
       lastRefreshedAt: "",
       lastLeader: "",
-      oddsByDay: {}
-    },
-    teamStats: initializeTeamStats()
+      oddsByDay: {} // Add odds cache
+    }
   };
 }
 
@@ -1470,8 +1144,8 @@ function createUser(handle) {
       team: TEAM_POOL[idx],
       rank: idx + 1,
       rankBonus: 6 - (idx + 1),
-      goals: 0,
-      wins: 0
+      goals: 6 + Math.floor(Math.random() * 8),
+      wins: 2 + Math.floor(Math.random() * 6)
     }))
   };
 }
