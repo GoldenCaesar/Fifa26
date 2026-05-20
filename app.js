@@ -74,6 +74,7 @@ const WC_TEAMS = [
 ];
 
 let picksState = [];
+let countdownInterval = null;
 
 const state = {
   config: loadConfig(),
@@ -92,7 +93,40 @@ if (!state.data) {
 
 init();
 
+function startCountdown() {
+  // First World Cup 2026 match: June 11, 2026 at 11:00 UTC
+  const kickoffDate = new Date("2026-06-11T11:00:00Z");
+  
+  function updateCountdown() {
+    const now = new Date();
+    const timeDiff = kickoffDate - now;
+    
+    if (timeDiff <= 0) {
+      document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      return;
+    }
+    
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+    
+    document.getElementById("days").textContent = String(days).padStart(2, "0");
+    document.getElementById("hours").textContent = String(hours).padStart(2, "0");
+    document.getElementById("minutes").textContent = String(minutes).padStart(2, "0");
+    document.getElementById("seconds").textContent = String(seconds).padStart(2, "0");
+  }
+  
+  updateCountdown();
+  countdownInterval = setInterval(updateCountdown, 1000);
+}
+
 function init() {
+  startCountdown();
   wirePwa();
   wireLogin();
   wireNav();
@@ -259,6 +293,12 @@ async function loginByHandle(handle) {
 
   const logo = document.getElementById("logo-wrap");
   logo.classList.add("explode");
+  
+  // Stop countdown timer when leaving login screen
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
 
   setTimeout(() => {
     document.getElementById("screen-login").classList.remove("active");

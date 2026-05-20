@@ -156,6 +156,105 @@ select {
   filter: blur(8px);
 }
 
+.countdown-clock {
+  width: min(92vw, 560px);
+  margin-bottom: 24px;
+  text-align: center;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+.countdown-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.countdown-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+  padding: 12px 8px;
+  background: rgba(255, 0, 255, 0.08);
+  border: 1px solid rgba(255, 0, 255, 0.25);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+}
+
+.countdown-number {
+  font-family: "Oswald", sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(255, 0, 255, 0.5);
+}
+
+.countdown-text {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.countdown-separator {
+  font-size: 2rem;
+  color: var(--primary);
+  font-weight: 700;
+  opacity: 0.6;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+.countdown-subtitle {
+  font-size: 0.75rem;
+  color: var(--secondary);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.countdown-live {
+  font-family: "Oswald", sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--secondary);
+  text-transform: uppercase;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0.3;
+  }
+}
+
 .login-card {
   width: min(92vw, 460px);
   display: grid;
@@ -860,6 +959,29 @@ select {
   }
   100% {
     transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 500px) {
+  .countdown-unit {
+    min-width: 58px;
+    padding: 10px 6px;
+  }
+
+  .countdown-number {
+    font-size: 1.6rem;
+  }
+
+  .countdown-text {
+    font-size: 0.6rem;
+  }
+
+  .countdown-separator {
+    font-size: 1.4rem;
+  }
+
+  .countdown-label {
+    font-size: 0.75rem;
   }
 }
 
