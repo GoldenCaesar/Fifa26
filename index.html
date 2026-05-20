@@ -98,6 +98,19 @@
         <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Family Clash 2026</h1></div>
         <div class="top-bar-right">
           <span id="top-bar-admin-badge" class="admin-badge" style="display:none"><i class="material-symbols-outlined">admin_panel_settings</i> Admin</span>
+          <div id="user-menu-wrapper" class="user-menu-wrapper" style="position:relative">
+            <button id="user-menu-btn" class="user-menu-btn" title="Account menu">
+              <i class="material-symbols-outlined">account_circle</i>
+              <span id="user-display-name"></span>
+              <i class="material-symbols-outlined">arrow_drop_down</i>
+            </button>
+            <div id="user-menu-dropdown" class="user-menu-dropdown" style="display:none">
+              <button id="signout-btn" class="menu-item">
+                <i class="material-symbols-outlined">logout</i>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
           <button class="icon-btn" id="refresh-button" title="Refresh daily data"><i class="material-symbols-outlined">autorenew</i></button>
         </div>
       </header>

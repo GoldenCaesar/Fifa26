@@ -263,7 +263,10 @@ async function loginByHandle(handle) {
   setTimeout(() => {
     document.getElementById("screen-login").classList.remove("active");
     const user = getCurrentUser();
-    if (needsPicks(user)) {
+    // Admin skips team picking entirely
+    if (state.isAdmin) {
+      enterApp();
+    } else if (needsPicks(user)) {
       initPicksScreen(user);
     } else {
       enterApp();
@@ -499,6 +502,47 @@ function enterApp() {
     document.getElementById("admin-panel").style.display = "block";
     document.getElementById("top-bar-admin-badge").style.display = "inline-flex";
   }
+  
+  // Display username and setup sign-out menu
+  const user = getCurrentUser();
+  const displayName = document.getElementById("user-display-name");
+  if (user && displayName) {
+    displayName.textContent = user.handle;
+  }
+  
+  // Wire up user menu toggle
+  const menuBtn = document.getElementById("user-menu-btn");
+  const dropdown = document.getElementById("user-menu-dropdown");
+  if (menuBtn && dropdown) {
+    menuBtn.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
+    };
+    
+    // Close dropdown when clicking outside
+    document.addEventListener("click", () => {
+      dropdown.style.display = "none";
+    });
+  }
+  
+  // Wire up sign out button
+  const signoutBtn = document.getElementById("signout-btn");
+  if (signoutBtn) {
+    signoutBtn.onclick = () => {
+      state.data.currentUser = null;
+      state.isAdmin = false;
+      persistState();
+      // Reset to login screen
+      document.getElementById("screen-app").classList.remove("active");
+      document.getElementById("screen-picks").classList.remove("active");
+      document.getElementById("screen-login").classList.add("active");
+      document.getElementById("handle-input").value = "";
+      document.getElementById("admin-password-input").value = "";
+      document.getElementById("admin-password-field").classList.add("hidden");
+      document.getElementById("login-message").textContent = "";
+    };
+  }
+  
   switchView("home");
   runDailyRefresh(false).then(renderApp);
   connectSupabase();
@@ -888,10 +932,26 @@ function renderMatches() {
         const oddsRow = document.createElement("div");
         oddsRow.className = "odds-row";
         const betInputId = `wager-${match.id}`;
+        
+        // Determine which team is favored (lower odds = more likely to win)
+        const homeFavored = match.odds.home < match.odds.away;
+        const awayFavored = match.odds.away < match.odds.home;
+        const homeLabel = homeFavored ? " ⭐ Favored" : (awayFavored ? " Underdog" : "");
+        const awayLabel = awayFavored ? " ⭐ Favored" : (homeFavored ? " Underdog" : "");
+        
         oddsRow.innerHTML = `
-          <button class="odds-btn" data-pick="${match.home}" data-odds="${match.odds.home}">${match.home} ${match.odds.home.toFixed(2)}x</button>
-          <button class="odds-btn" data-pick="${match.away}" data-odds="${match.odds.away}">${match.away} ${match.odds.away.toFixed(2)}x</button>
+          <button class="odds-btn" data-pick="${match.home}" data-odds="${match.odds.home}">
+            ${match.home} ${match.odds.home.toFixed(2)}x${homeLabel}
+          </button>
+          <button class="odds-btn" data-pick="${match.away}" data-odds="${match.odds.away}">
+            ${match.away} ${match.odds.away.toFixed(2)}x${awayLabel}
+          </button>
         `;
+        
+        const oddsExplainer = document.createElement("div");
+        oddsExplainer.className = "inline-note";
+        oddsExplainer.style.cssText = "font-size:11px;margin-top:4px;text-align:center";
+        oddsExplainer.innerHTML = "<strong>Lower odds</strong> = team favored to win (safer bet, lower payout) &bull; <strong>Higher odds</strong> = underdog (riskier bet, higher payout)";
 
         const wager = document.createElement("div");
         wager.className = "wager-row";
@@ -927,11 +987,12 @@ function renderMatches() {
         function updateProfit() {
           const value = Number(input.value || 0);
           if (!selected || value <= 0) {
-            profit.textContent = "Potential Profit: +0 points";
+            profit.textContent = "Potential Profit: +0 points (Total Return: +0)";
             return;
           }
           const p = Math.max(value * selected.odds, value * 0.1);
-          profit.textContent = `Potential Profit: +${Math.round(p)} points`;
+          const totalReturn = value + p;
+          profit.textContent = `Potential Profit: +${Math.round(p)} points (Total Return: ${Math.round(totalReturn)} if win)`;
         }
 
         wager.querySelector("button").addEventListener("click", () => {
@@ -956,6 +1017,7 @@ function renderMatches() {
         });
 
         card.appendChild(oddsRow);
+        card.appendChild(oddsExplainer);
         card.appendChild(wager);
         card.appendChild(profit);
         if (!canPlace) {
