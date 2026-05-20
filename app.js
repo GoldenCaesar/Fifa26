@@ -279,7 +279,6 @@ async function loginByHandle(handle) {
     }
     user = createNewUser(handle);
     users.push(user);
-    state.data.leaderboard.push({ userId: user.id, history: seedHistory() });
     
     // Sync new user to Supabase
     syncUserToSupabase(user).catch(err => {
@@ -580,6 +579,8 @@ function enterApp() {
       document.getElementById("admin-password-input").value = "";
       document.getElementById("admin-password-field").classList.add("hidden");
       document.getElementById("login-message").textContent = "";
+      // Restart countdown timer
+      startCountdown();
     };
   }
   
@@ -704,6 +705,17 @@ function lockUserPicks() {
   user.picksLocked = true;
   user.pendingPicks = [];
   user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+  
+  // Record initial score for this user
+  const todayKey = toYmd(new Date(), state.config.timezone);
+  if (!state.data.scoreHistory) {
+    state.data.scoreHistory = {};
+  }
+  if (!state.data.scoreHistory[todayKey]) {
+    state.data.scoreHistory[todayKey] = {};
+  }
+  state.data.scoreHistory[todayKey][user.id] = user.totalScore;
+  
   persistState();
   
   // Sync user picks to Supabase
@@ -724,6 +736,9 @@ async function runDailyRefresh(force) {
   lockTodaysMatches(todayKey);
   settleYesterdayBets(todayKey);
   recomputeLeaderboard();
+  
+  // Record daily scores for history tracking
+  recordDailyScores(todayKey);
 
   state.data.cache.lastRefreshYmd = todayKey;
   state.data.cache.lastRefreshedAt = now.toISOString();
@@ -818,6 +833,22 @@ function recomputeLeaderboard() {
   syncUserRankingsWithTeamStats();
 }
 
+function recordDailyScores(dayYmd) {
+  if (!state.data.scoreHistory) {
+    state.data.scoreHistory = {};
+  }
+  
+  state.data.scoreHistory[dayYmd] = {};
+  
+  state.data.users.forEach(user => {
+    if (user.handle.toLowerCase() !== "admin") {
+      state.data.scoreHistory[dayYmd][user.id] = user.totalScore;
+    }
+  });
+  
+  persistState();
+}
+
 function renderApp() {
   if (!state.data.currentUser) return;
   renderHomeGraph(false);
@@ -834,21 +865,149 @@ function renderHomeGraph(withBurst) {
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const users = state.data.users.filter(u => u.picksLocked);
+  
+  // Exclude admin from leaderboard
+  const users = state.data.users.filter(u => u.picksLocked && u.handle.toLowerCase() !== "admin");
   const colors = ["#ff00ff", "#39ff14", "#ffd700", "#8fb7ff", "#ff955e"];
 
   ctx.clearRect(0, 0, width, height);
   
   if (users.length === 0) return;
   
-  // Sort by score descending
+  // Get score history
+  const scoreHistory = state.data.scoreHistory || {};
+  const days = Object.keys(scoreHistory).sort();
+  
+  // If no history yet, show current scores as simple bar chart
+  if (days.length === 0) {
+    renderSimpleBarChart(ctx, users, colors, width, height);
+    return;
+  }
+  
+  // Sort users by current score (descending) for Y-axis ordering
+  const sorted = [...users].sort((a, b) => b.totalScore - a.totalScore);
+  
+  // Chart dimensions
+  const leftMargin = 120;
+  const rightMargin = 20;
+  const topMargin = 20;
+  const bottomMargin = 40;
+  const chartWidth = width - leftMargin - rightMargin;
+  const chartHeight = height - topMargin - bottomMargin;
+  
+  // Get max score for scaling
+  const allScores = days.flatMap(day => Object.values(scoreHistory[day]));
+  const maxScore = Math.max(...allScores, ...sorted.map(u => u.totalScore), 100);
+  const minScore = 0;
+  
+  // Draw axes
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(leftMargin, topMargin);
+  ctx.lineTo(leftMargin, height - bottomMargin);
+  ctx.lineTo(width - rightMargin, height - bottomMargin);
+  ctx.stroke();
+  
+  // Draw Y-axis labels (player names with current scores, ordered by rank)
+  ctx.font = "600 11px 'Be Vietnam Pro'";
+  ctx.textAlign = "right";
+  const ySpacing = chartHeight / (sorted.length + 1);
+  
+  sorted.forEach((user, idx) => {
+    const y = topMargin + (idx + 1) * ySpacing;
+    const color = colors[idx % colors.length];
+    const isCurrentUser = user.id === state.data.currentUser;
+    
+    ctx.fillStyle = isCurrentUser ? color : "#a8a0ad";
+    ctx.fillText(`${user.handle}: ${user.totalScore}`, leftMargin - 10, y + 4);
+    
+    // Draw horizontal grid line
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.beginPath();
+    ctx.moveTo(leftMargin, y);
+    ctx.lineTo(width - rightMargin, y);
+    ctx.stroke();
+  });
+  
+  // Draw X-axis labels (days)
+  ctx.font = "500 9px 'Be Vietnam Pro'";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#a8a0ad";
+  const displayDays = days.slice(-14); // Show last 14 days
+  const xSpacing = chartWidth / (displayDays.length - 1 || 1);
+  
+  displayDays.forEach((day, idx) => {
+    const x = leftMargin + idx * xSpacing;
+    const label = new Date(day + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    ctx.fillText(label, x, height - bottomMargin + 20);
+    
+    // Draw vertical grid line
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.beginPath();
+    ctx.moveTo(x, topMargin);
+    ctx.lineTo(x, height - bottomMargin);
+    ctx.stroke();
+  });
+  
+  // Draw lines for each user
+  sorted.forEach((user, idx) => {
+    const color = colors[idx % colors.length];
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = color;
+    
+    ctx.beginPath();
+    let firstPoint = true;
+    
+    displayDays.forEach((day, dayIdx) => {
+      const score = scoreHistory[day] && scoreHistory[day][user.id] !== undefined 
+        ? scoreHistory[day][user.id] 
+        : (dayIdx === displayDays.length - 1 ? user.totalScore : null);
+      
+      if (score !== null) {
+        const x = leftMargin + dayIdx * xSpacing;
+        const scorePercent = (score - minScore) / (maxScore - minScore || 1);
+        const y = height - bottomMargin - (scorePercent * chartHeight);
+        
+        if (firstPoint) {
+          ctx.moveTo(x, y);
+          firstPoint = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+        
+        // Draw point
+        ctx.fillRect(x - 2, y - 2, 4, 4);
+      }
+    });
+    
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+  
+  // Update leader badge
+  const leader = sorted[0];
+  document.getElementById("leader-badge").textContent = leader
+    ? `${leader.handle.toUpperCase()} LEADS`
+    : "Leader";
+
+  if (withBurst || state.data.cache.lastLeader !== leader?.id) {
+    launchLeaderEvent(leader ? `${leader.handle} Rank Up!` : "Rank Up!");
+    state.data.cache.lastLeader = leader?.id;
+  }
+
+  persistState();
+}
+
+function renderSimpleBarChart(ctx, users, colors, width, height) {
+  // Fallback bar chart when no history data
   const sorted = [...users].sort((a, b) => b.totalScore - a.totalScore);
   const maxScore = Math.max(...sorted.map(u => u.totalScore), 100);
-  
   const barWidth = (width - 60) / sorted.length;
   const padding = 15;
-  
-  let top = { userId: null, score: -Infinity };
   
   sorted.forEach((user, index) => {
     const color = colors[index % colors.length];
@@ -857,20 +1016,17 @@ function renderHomeGraph(withBurst) {
     const y = height - barHeight - 40;
     const w = barWidth * 0.8;
     
-    // Draw bar
     ctx.fillStyle = color;
     ctx.shadowBlur = 8;
     ctx.shadowColor = color;
     ctx.fillRect(x, y, w, barHeight);
     
-    // Draw score label
     ctx.fillStyle = "#fff";
     ctx.shadowBlur = 0;
     ctx.font = "bold 11px 'Be Vietnam Pro'";
     ctx.textAlign = "center";
     ctx.fillText(user.totalScore.toLocaleString(), x + w / 2, y - 5);
     
-    // Draw player name
     ctx.font = "600 10px 'Be Vietnam Pro'";
     ctx.fillStyle = user.id === state.data.currentUser ? color : "#a8a0ad";
     ctx.save();
@@ -878,23 +1034,12 @@ function renderHomeGraph(withBurst) {
     ctx.rotate(-Math.PI / 4);
     ctx.fillText(user.handle, 0, 0);
     ctx.restore();
-    
-    if (user.totalScore > top.score) {
-      top = { userId: user.id, score: user.totalScore };
-    }
   });
-
-  const leader = state.data.users.find((user) => user.id === top.userId);
+  
+  const leader = sorted[0];
   document.getElementById("leader-badge").textContent = leader
     ? `${leader.handle.toUpperCase()} LEADS`
     : "Leader";
-
-  if (withBurst || state.data.cache.lastLeader !== top.userId) {
-    launchLeaderEvent(leader ? `${leader.handle} Rank Up!` : "Rank Up!");
-    state.data.cache.lastLeader = top.userId;
-  }
-
-  persistState();
 }
 
 
@@ -1549,7 +1694,7 @@ function createInitialState() {
     currentUser: null,
     lastLogin: null,
     users: baselineUsers,
-    leaderboard: baselineUsers.map((user) => ({ userId: user.id, history: seedHistory() })),
+    scoreHistory: {}, // { "2026-05-20": { userId: score, ... }, ... }
     bets: [],
     matches: [],
     cache: {
