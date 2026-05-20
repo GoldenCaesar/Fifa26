@@ -35,6 +35,11 @@
             <span>Enter Your Name or Profile Handle</span>
             <i class="material-symbols-outlined">account_circle</i>
           </label>
+          <label id="admin-password-field" class="md3-field hidden">
+            <input id="admin-password-input" type="password" maxlength="20" autocomplete="off">
+            <span>Admin Password</span>
+            <i class="material-symbols-outlined">lock</i>
+          </label>
           <button id="enter-button" class="btn btn-primary">Enter <i class="material-symbols-outlined">sports_soccer</i></button>
           <div id="login-message" class="inline-note"></div>
         </div>
@@ -45,7 +50,10 @@
     <section id="screen-app" class="screen screen-app" aria-label="App">
       <header class="top-bar">
         <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Family Clash 2026</h1></div>
-        <button class="icon-btn" id="refresh-button" title="Refresh daily data"><i class="material-symbols-outlined">autorenew</i></button>
+        <div class="top-bar-right">
+          <span id="top-bar-admin-badge" class="admin-badge" style="display:none"><i class="material-symbols-outlined">admin_panel_settings</i> Admin</span>
+          <button class="icon-btn" id="refresh-button" title="Refresh daily data"><i class="material-symbols-outlined">autorenew</i></button>
+        </div>
       </header>
 
       <main id="main-view" class="main-view">
@@ -104,8 +112,24 @@
         </section>
 
         <section id="view-settings" class="view" data-view="settings">
+          <div id="admin-panel" style="display:none">
+            <article class="panel admin-section">
+              <div class="panel-head">
+                <h3><i class="material-symbols-outlined">people</i> Registered Users</h3>
+              </div>
+              <div id="admin-user-list" class="admin-user-list"></div>
+            </article>
+            <article class="panel admin-section">
+              <div class="panel-head">
+                <h3><i class="material-symbols-outlined">autorenew</i> Daily Refresh</h3>
+              </div>
+              <p class="inline-note">Force a fresh fetch of today's matches and odds from the server.</p>
+              <button id="admin-refresh-btn" class="btn btn-primary" style="width:100%;margin-top:10px">Force Daily Refresh <i class="material-symbols-outlined">autorenew</i></button>
+              <div id="admin-refresh-status" class="inline-note" style="margin-top:8px"></div>
+            </article>
+          </div>
           <article class="panel">
-            <h3>Admin Settings</h3>
+            <h3>App Settings</h3>
             <p class="inline-note">App settings stored locally on this device. Odds are fetched server-side via Supabase Edge Function.</p>
             <form id="settings-form" class="settings-form">
               <label>Canonical Timezone

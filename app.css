@@ -240,8 +240,97 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(255, 92, 106, 0.4);
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 0.85rem;
+}
+
 .btn:active {
   transform: scale(0.98);
+}
+
+/* ── Admin panel ─────────────────────────────────── */
+.hidden {
+  display: none !important;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--tertiary);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-badge i {
+  font-size: 1rem;
+}
+
+.admin-section {
+  border: 1px solid rgba(255, 215, 0, 0.18);
+}
+
+.admin-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tertiary);
+}
+
+.admin-user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+.admin-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-user-handle {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.admin-user-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+#admin-password-field {
+  margin-top: 4px;
 }
 
 .inline-note {

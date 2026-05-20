@@ -40,7 +40,8 @@ const state = {
   supabase: null,
   chartTicker: null,
   particles: [],
-  activeView: "home"
+  activeView: "home",
+  isAdmin: false
 };
 
 if (!state.data) {
@@ -71,12 +72,41 @@ function wirePwa() {
 function wireLogin() {
   const enterBtn = document.getElementById("enter-button");
   const handleInput = document.getElementById("handle-input");
+  const passwordField = document.getElementById("admin-password-field");
+  const passwordInput = document.getElementById("admin-password-input");
+
+  let awaitingAdminPassword = false;
 
   const execute = async () => {
-    await loginByHandle(handleInput.value.trim());
+    if (awaitingAdminPassword) {
+      if (passwordInput.value === "1705") {
+        state.isAdmin = true;
+        await loginByHandle("admin");
+      } else {
+        setStatus("login-message", "Incorrect password.");
+        passwordInput.value = "";
+        passwordInput.focus();
+      }
+    } else {
+      const handle = handleInput.value.trim();
+      if (handle.toLowerCase() === "admin") {
+        awaitingAdminPassword = true;
+        passwordField.classList.remove("hidden");
+        passwordInput.focus();
+        handleInput.disabled = true;
+        enterBtn.innerHTML = 'Continue <i class="material-symbols-outlined">lock</i>';
+        setStatus("login-message", "Enter the admin password to continue.");
+      } else {
+        await loginByHandle(handle);
+      }
+    }
   };
+
   enterBtn.addEventListener("click", execute);
   handleInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") execute();
+  });
+  passwordInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") execute();
   });
 }
@@ -137,6 +167,16 @@ function wireSettings() {
     connectSupabase();
     setStatus("settings-status", "Settings saved.");
   });
+
+  document.getElementById("admin-refresh-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("admin-refresh-btn");
+    btn.disabled = true;
+    setStatus("admin-refresh-status", "Refreshing...");
+    await runDailyRefresh(true);
+    renderApp();
+    setStatus("admin-refresh-status", "Daily refresh complete.");
+    btn.disabled = false;
+  });
 }
 
 function hydrateSettingsForm() {
@@ -158,8 +198,10 @@ async function loginByHandle(handle) {
   let user = users.find((entry) => entry.handle.toLowerCase() === handle.toLowerCase());
 
   if (!user) {
-    const ok = window.confirm(`No account found for ${handle}. Create it now?`);
-    if (!ok) return;
+    if (handle.toLowerCase() !== "admin") {
+      const ok = window.confirm(`No account found for ${handle}. Create it now?`);
+      if (!ok) return;
+    }
     user = createUser(handle);
     users.push(user);
     state.data.leaderboard.push({ userId: user.id, history: seedHistory() });
@@ -175,6 +217,10 @@ async function loginByHandle(handle) {
   setTimeout(() => {
     document.getElementById("screen-login").classList.remove("active");
     document.getElementById("screen-app").classList.add("active");
+    if (state.isAdmin) {
+      document.getElementById("admin-panel").style.display = "block";
+      document.getElementById("top-bar-admin-badge").style.display = "inline-flex";
+    }
     switchView("home");
     runDailyRefresh(false).then(renderApp);
     connectSupabase();
@@ -187,6 +233,53 @@ function switchView(target) {
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("active"));
   document.getElementById(`view-${target}`).classList.add("active");
   document.querySelector(`.nav-item[data-target='${target}']`).classList.add("active");
+  if (target === "settings" && state.isAdmin) {
+    renderAdminPanel();
+  }
+}
+
+function renderAdminPanel() {
+  if (!state.isAdmin) return;
+  const panel = document.getElementById("admin-panel");
+  panel.style.display = "block";
+
+  const list = document.getElementById("admin-user-list");
+  list.innerHTML = "";
+
+  state.data.users.forEach((user) => {
+    const isCurrentAdmin = user.id === state.data.currentUser;
+    const row = document.createElement("div");
+    row.className = "admin-user-row";
+    row.innerHTML = `
+      <div class="admin-user-info">
+        <span class="admin-user-handle">${user.handle}</span>
+        <span class="admin-user-meta">${user.totalScore.toLocaleString()} pts &bull; ${Math.floor(user.balance)} bal</span>
+      </div>
+      <button class="btn btn-danger admin-delete-btn" data-userid="${user.id}" ${isCurrentAdmin ? "disabled title='Cannot delete the currently logged-in admin'" : ""}>
+        <i class="material-symbols-outlined">delete</i>
+      </button>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll(".admin-delete-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const userId = btn.dataset.userid;
+      const user = state.data.users.find((u) => u.id === userId);
+      if (!user) return;
+      if (!confirm(`Delete user "${user.handle}"? This cannot be undone.`)) return;
+      deleteUser(userId);
+    });
+  });
+}
+
+function deleteUser(userId) {
+  state.data.users = state.data.users.filter((u) => u.id !== userId);
+  state.data.leaderboard = state.data.leaderboard.filter((row) => row.userId !== userId);
+  state.data.bets = state.data.bets.filter((bet) => bet.userId !== userId);
+  persistState();
+  renderAdminPanel();
+  renderHomeGraph(false);
 }
 
 async function runDailyRefresh(force) {
