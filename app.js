@@ -34,6 +34,31 @@ const GROUPS = {
   "Group C": ["Spain", "Portugal", "Italy", "Croatia"]
 };
 
+// Full FIFA World Cup 2026 team roster (alphabetical)
+const WC_TEAMS = [
+  "Albania", "Algeria", "Argentina", "Australia", "Austria",
+  "Belgium", "Bolivia", "Brazil",
+  "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czech Republic",
+  "Denmark", "DR Congo",
+  "Ecuador", "Egypt", "England",
+  "France",
+  "Germany", "Ghana", "Greece",
+  "Honduras", "Hungary",
+  "Iran", "Italy", "Ivory Coast",
+  "Jamaica", "Japan", "Jordan",
+  "Mexico", "Morocco",
+  "Netherlands", "New Zealand", "Nigeria", "Norway",
+  "Panama", "Paraguay", "Peru", "Poland", "Portugal",
+  "Romania",
+  "Saudi Arabia", "Scotland", "Senegal", "Serbia", "Slovakia", "Slovenia",
+  "South Africa", "South Korea", "Spain", "Sweden", "Switzerland",
+  "Turkey",
+  "Ukraine", "Uruguay", "USA", "Uzbekistan",
+  "Venezuela"
+];
+
+let picksState = [];
+
 const state = {
   config: loadConfig(),
   data: loadState(),
@@ -202,7 +227,7 @@ async function loginByHandle(handle) {
       const ok = window.confirm(`No account found for ${handle}. Create it now?`);
       if (!ok) return;
     }
-    user = createUser(handle);
+    user = createNewUser(handle);
     users.push(user);
     state.data.leaderboard.push({ userId: user.id, history: seedHistory() });
   }
@@ -216,14 +241,12 @@ async function loginByHandle(handle) {
 
   setTimeout(() => {
     document.getElementById("screen-login").classList.remove("active");
-    document.getElementById("screen-app").classList.add("active");
-    if (state.isAdmin) {
-      document.getElementById("admin-panel").style.display = "block";
-      document.getElementById("top-bar-admin-badge").style.display = "inline-flex";
+    const user = getCurrentUser();
+    if (needsPicks(user)) {
+      initPicksScreen(user);
+    } else {
+      enterApp();
     }
-    switchView("home");
-    runDailyRefresh(false).then(renderApp);
-    connectSupabase();
   }, 700);
 }
 
@@ -280,6 +303,149 @@ function deleteUser(userId) {
   persistState();
   renderAdminPanel();
   renderHomeGraph(false);
+}
+
+// ── Picks screen ─────────────────────────────────────────
+
+function needsPicks(user) {
+  if (!user) return false;
+  if (user.picksLocked === true) return false;
+  // Migration: existing users with rankings but no picksLocked flag treated as locked
+  if (user.picksLocked === undefined && user.rankings && user.rankings.length > 0) return false;
+  return true;
+}
+
+function enterApp() {
+  document.getElementById("screen-app").classList.add("active");
+  if (state.isAdmin) {
+    document.getElementById("admin-panel").style.display = "block";
+    document.getElementById("top-bar-admin-badge").style.display = "inline-flex";
+  }
+  switchView("home");
+  runDailyRefresh(false).then(renderApp);
+  connectSupabase();
+}
+
+function initPicksScreen(user) {
+  picksState = user.pendingPicks && user.pendingPicks.length > 0 ? [...user.pendingPicks] : [];
+
+  const screen = document.getElementById("screen-picks");
+  const welcome = document.getElementById("picks-welcome");
+  const picker = document.getElementById("picks-picker");
+
+  screen.classList.add("active");
+
+  if (picksState.length > 0) {
+    // Returning mid-pick — skip welcome, restore previous selections
+    welcome.classList.add("hidden");
+    picker.classList.remove("hidden");
+    renderPicksGrid();
+  } else {
+    welcome.classList.remove("hidden");
+    picker.classList.add("hidden");
+  }
+
+  document.getElementById("picks-welcome-continue").onclick = () => {
+    welcome.classList.add("hidden");
+    picker.classList.remove("hidden");
+    renderPicksGrid();
+  };
+
+  document.getElementById("picks-lock-btn").onclick = () => {
+    if (picksState.length !== 5) return;
+    lockUserPicks();
+  };
+}
+
+function renderPicksGrid() {
+  const grid = document.getElementById("picks-team-grid");
+  grid.innerHTML = "";
+
+  WC_TEAMS.forEach((team) => {
+    const btn = document.createElement("button");
+    btn.className = "team-pick-btn";
+    btn.dataset.team = team;
+    btn.textContent = team;
+
+    const rank = picksState.indexOf(team);
+    if (rank !== -1) {
+      btn.classList.add("picked");
+      btn.setAttribute("data-rank", rank + 1);
+    }
+
+    btn.addEventListener("click", () => toggleTeamPick(team));
+    grid.appendChild(btn);
+  });
+
+  updatePickSlots();
+}
+
+function toggleTeamPick(team) {
+  const idx = picksState.indexOf(team);
+  if (idx !== -1) {
+    picksState.splice(idx, 1);
+  } else if (picksState.length < 5) {
+    picksState.push(team);
+  }
+  const user = getCurrentUser();
+  if (user) {
+    user.pendingPicks = [...picksState];
+    persistState();
+  }
+  updatePickSlots();
+  updateTeamGrid();
+}
+
+function updatePickSlots() {
+  for (let i = 1; i <= 5; i++) {
+    const slot = document.querySelector(`.pick-slot[data-rank="${i}"]`);
+    if (!slot) continue;
+    const label = slot.querySelector(".pick-label");
+    if (picksState[i - 1]) {
+      label.textContent = picksState[i - 1];
+      slot.classList.add("filled");
+    } else {
+      label.textContent = "—";
+      slot.classList.remove("filled");
+    }
+  }
+  const lockBtn = document.getElementById("picks-lock-btn");
+  if (lockBtn) lockBtn.disabled = picksState.length !== 5;
+}
+
+function updateTeamGrid() {
+  document.querySelectorAll(".team-pick-btn").forEach((btn) => {
+    const team = btn.dataset.team;
+    const rank = picksState.indexOf(team);
+    if (rank !== -1) {
+      btn.classList.add("picked");
+      btn.setAttribute("data-rank", rank + 1);
+    } else {
+      btn.classList.remove("picked");
+      btn.removeAttribute("data-rank");
+    }
+  });
+}
+
+function lockUserPicks() {
+  if (picksState.length !== 5) return;
+  const user = getCurrentUser();
+  if (!user) return;
+
+  user.rankings = picksState.map((team, index) => ({
+    team,
+    rank: index + 1,
+    rankBonus: 6 - (index + 1),
+    goals: 6 + Math.floor(Math.random() * 8),
+    wins: 2 + Math.floor(Math.random() * 6)
+  }));
+  user.picksLocked = true;
+  user.pendingPicks = [];
+  user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+  persistState();
+
+  document.getElementById("screen-picks").classList.remove("active");
+  enterApp();
 }
 
 async function runDailyRefresh(force) {
@@ -972,6 +1138,8 @@ function createUser(handle) {
     handle,
     balance: 2450,
     totalScore: 2450,
+    picksLocked: true,
+    pendingPicks: [],
     rankings: [0, 1, 2, 3, 4].map((idx) => ({
       team: TEAM_POOL[idx],
       rank: idx + 1,
@@ -979,6 +1147,19 @@ function createUser(handle) {
       goals: 6 + Math.floor(Math.random() * 8),
       wins: 2 + Math.floor(Math.random() * 6)
     }))
+  };
+}
+
+// Used when a real user registers via the login screen
+function createNewUser(handle) {
+  return {
+    id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    handle,
+    balance: 2450,
+    totalScore: 0,
+    picksLocked: false,
+    pendingPicks: [],
+    rankings: []
   };
 }
 

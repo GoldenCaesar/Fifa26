@@ -812,3 +812,173 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Picks screen ─────────────────────────────────────── */
+
+.screen-picks {
+  padding-top: 64px;
+  overflow-y: auto;
+  min-height: 100dvh;
+}
+
+.picks-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px 32px;
+  min-height: calc(100dvh - 64px);
+}
+
+.picks-welcome-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.picks-logo {
+  width: 92px !important;
+  height: 92px !important;
+  font-size: 1.35rem !important;
+  margin: 0 auto 20px !important;
+  animation: none !important;
+}
+
+.picks-welcome-card h2 {
+  font-size: 1.55rem;
+  margin: 0 0 14px;
+  line-height: 1.25;
+}
+
+.picks-welcome-card p {
+  margin: 0 0 6px;
+  line-height: 1.65;
+}
+
+.picks-header {
+  padding: 16px 14px 6px;
+}
+
+.picks-header h2 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+}
+
+.picks-slots-wrap {
+  overflow-x: auto;
+  padding: 8px 14px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.picks-slots {
+  display: flex;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.pick-slot {
+  width: 82px;
+  background: var(--surface);
+  border: 2px solid var(--surface-hi);
+  border-radius: 10px;
+  padding: 8px 6px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pick-slot.filled {
+  border-color: var(--primary);
+  background: rgba(255, 0, 255, 0.1);
+}
+
+.pick-slot .rank-num {
+  display: block;
+  font-size: 0.58rem;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pick-slot .pick-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 5px;
+  color: var(--text);
+  word-break: break-word;
+  line-height: 1.2;
+  min-height: 2rem;
+}
+
+.pick-slot.filled .pick-label {
+  color: var(--primary);
+}
+
+.picks-team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 4px 14px 14px;
+}
+
+.team-pick-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--surface-hi);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 8px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  position: relative;
+  min-height: 52px;
+  line-height: 1.25;
+  font-family: inherit;
+}
+
+.team-pick-btn:hover {
+  background: var(--surface-hi);
+}
+
+.team-pick-btn.picked {
+  background: rgba(255, 0, 255, 0.15);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.team-pick-btn.picked::after {
+  content: attr(data-rank);
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+  border-radius: 50%;
+  width: 17px;
+  height: 17px;
+  line-height: 17px;
+  text-align: center;
+}
+
+.picks-lock-wrap {
+  padding: 8px 14px 40px;
+}
+
+.picks-lock-btn {
+  width: 100%;
+}
+
+.picks-lock-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}

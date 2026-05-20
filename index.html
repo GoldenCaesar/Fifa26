@@ -48,6 +48,54 @@
     </section>
 
     <section id="screen-app" class="screen screen-app" aria-label="App">
+*** PREPEND
+
+    <section id="screen-picks" class="screen screen-picks" aria-label="Team Picks">
+      <header class="top-bar muted">
+        <h1>Family Clash 2026</h1>
+      </header>
+
+      <!-- Step 1: Welcome message -->
+      <div id="picks-welcome" class="picks-welcome">
+        <div class="picks-welcome-card">
+          <div class="football-logo picks-logo" aria-hidden="true">FC26</div>
+          <h2>Welcome to the FIFA<br>Family Clash 2026!</h2>
+          <p>Please choose <strong>5 teams</strong> you think will do the best in the <strong>FIFA World Cup '26</strong>.</p>
+          <p class="inline-note" style="margin-top:8px">Choose your teams in a ranked order — higher ranked teams will earn you more points.</p>
+          <button id="picks-welcome-continue" class="btn btn-primary" style="width:100%;margin-top:20px">
+            Choose My Teams <i class="material-symbols-outlined">arrow_forward</i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Team picker -->
+      <div id="picks-picker" class="picks-picker hidden">
+        <div class="picks-header">
+          <h2>Pick Your 5 Teams</h2>
+          <p class="inline-note">Tap a team to rank it. Tap it again to remove it. First tap = Rank 1.</p>
+        </div>
+
+        <div class="picks-slots-wrap">
+          <div id="picks-slots" class="picks-slots">
+            <div class="pick-slot" data-rank="1"><span class="rank-num">Rank 1</span><span class="pick-label">—</span></div>
+            <div class="pick-slot" data-rank="2"><span class="rank-num">Rank 2</span><span class="pick-label">—</span></div>
+            <div class="pick-slot" data-rank="3"><span class="rank-num">Rank 3</span><span class="pick-label">—</span></div>
+            <div class="pick-slot" data-rank="4"><span class="rank-num">Rank 4</span><span class="pick-label">—</span></div>
+            <div class="pick-slot" data-rank="5"><span class="rank-num">Rank 5</span><span class="pick-label">—</span></div>
+          </div>
+        </div>
+
+        <div id="picks-team-grid" class="picks-team-grid"></div>
+
+        <div class="picks-lock-wrap">
+          <button id="picks-lock-btn" class="btn btn-primary picks-lock-btn" disabled>
+            Lock In My Picks <i class="material-symbols-outlined">lock</i>
+          </button>
+          <p class="inline-note" style="text-align:center;margin-top:8px">This action is permanent and cannot be undone.</p>
+        </div>
+      </div>
+    </section>
+
       <header class="top-bar">
         <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Family Clash 2026</h1></div>
         <div class="top-bar-right">
