@@ -601,9 +601,171 @@ select {
 }
 
 .bracket-wrap {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 20px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bracket-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.bracket-wrap::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.bracket-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 0, 255, 0.3);
+  border-radius: 4px;
+}
+
+.bracket-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 0, 255, 0.5);
+}
+
+.bracket-container {
+  display: flex;
+  gap: 40px;
+  min-width: min-content;
+  padding: 10px;
+}
+
+.bracket-round {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 200px;
+  position: relative;
+}
+
+.bracket-round::after {
+  content: '';
+  position: absolute;
+  right: -20px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, 
+    transparent 0%, 
+    rgba(255, 0, 255, 0.2) 10%, 
+    rgba(255, 0, 255, 0.2) 90%, 
+    transparent 100%
+  );
+}
+
+.bracket-round:last-child::after {
+  display: none;
+}
+
+.bracket-round-title {
+  font-family: \"Oswald\", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  text-align: center;
+  padding: 8px 12px;
+  background: rgba(255, 0, 255, 0.08);
+  border: 1px solid rgba(255, 0, 255, 0.25);
+  border-radius: 8px;
+}
+
+.bracket-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  justify-content: space-around;
+}
+
+.bracket-match {
+  background: var(--surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.bracket-match:hover {
+  border-color: rgba(255, 0, 255, 0.4);
+  box-shadow: 0 0 12px rgba(255, 0, 255, 0.2);
+}
+
+.bracket-team {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 8px;
+  transition: background 0.2s ease;
+}
+
+.bracket-team.winner {
+  background: rgba(255, 0, 255, 0.12);
+  font-weight: 700;
+}
+
+.bracket-team .team-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.bracket-team.winner .team-name {
+  color: var(--primary);
+}
+
+.bracket-team .team-score {
+  font-family: \"Oswald\", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--secondary);
+  min-width: 24px;
+  text-align: right;
+}
+
+.bracket-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bracket-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: var(--surface);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Spacing adjustments for different rounds */
+.bracket-r16 .bracket-matches {
+  gap: 32px;
+}
+
+.bracket-qf .bracket-matches {
+  gap: 64px;
+}
+
+.bracket-sf .bracket-matches {
+  gap: 128px;
+}
+
+.bracket-finals .bracket-matches {
+  gap: 48px;
 }
 
 .match-row {
@@ -983,6 +1145,22 @@ select {
   .countdown-label {
     font-size: 0.75rem;
   }
+  
+  .bracket-round {
+    min-width: 180px;
+  }
+  
+  .bracket-container {
+    gap: 24px;
+  }
+  
+  .bracket-team .team-name {
+    font-size: 0.75rem;
+  }
+  
+  .bracket-round-title {
+    font-size: 0.75rem;
+  }
 }
 
 @media (min-width: 820px) {
@@ -1000,11 +1178,6 @@ select {
 
   .view#view-home.active {
     display: grid;
-  }
-
-  .bracket-wrap {
-    max-height: 450px;
-    overflow: auto;
   }
 
   .team-cards {

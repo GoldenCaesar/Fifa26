@@ -1045,15 +1045,103 @@ function renderSimpleBarChart(ctx, users, colors, width, height) {
 
 function renderBracket() {
   const wrap = document.getElementById("bracket-wrap");
-  const matches = state.data.matches.slice(0, 8);
   wrap.innerHTML = "";
+  
+  // Get knockout matches (after group stage)
+  const allMatches = state.data.matches || [];
+  const knockoutMatches = allMatches.filter(m => 
+    m.round && !m.round.includes("Group")
+  );
+  
+  // Organize by round
+  const rounds = {
+    r32: knockoutMatches.filter(m => m.round === "Round of 32"),
+    r16: knockoutMatches.filter(m => m.round === "Round of 16"),
+    qf: knockoutMatches.filter(m => m.round === "Quarterfinals"),
+    sf: knockoutMatches.filter(m => m.round === "Semifinals"),
+    bronze: knockoutMatches.filter(m => m.round === "Third Place"),
+    final: knockoutMatches.filter(m => m.round === "Final")
+  };
+  
+  // Create bracket container
+  const bracketContainer = document.createElement("div");
+  bracketContainer.className = "bracket-container";
+  
+  // Round of 32
+  if (rounds.r32.length > 0) {
+    bracketContainer.appendChild(createRoundColumn("Round of 32", rounds.r32, "r32"));
+  }
+  
+  // Round of 16
+  if (rounds.r16.length > 0) {
+    bracketContainer.appendChild(createRoundColumn("Round of 16", rounds.r16, "r16"));
+  }
+  
+  // Quarterfinals
+  if (rounds.qf.length > 0) {
+    bracketContainer.appendChild(createRoundColumn("Quarter-Finals", rounds.qf, "qf"));
+  }
+  
+  // Semifinals
+  if (rounds.sf.length > 0) {
+    bracketContainer.appendChild(createRoundColumn("Semi-Finals", rounds.sf, "sf"));
+  }
+  
+  // Finals
+  if (rounds.bronze.length > 0 || rounds.final.length > 0) {
+    const finalsMatches = [...rounds.bronze, ...rounds.final];
+    bracketContainer.appendChild(createRoundColumn("Finals", finalsMatches, "finals"));
+  }
+  
+  wrap.appendChild(bracketContainer);
+}
 
-  matches.forEach((match) => {
-    const row = document.createElement("div");
-    row.className = "match-row";
-    row.innerHTML = `<div><strong>${match.home}</strong> vs <strong>${match.away}</strong><br><small>${match.day} ${match.time}</small></div><div>${formatStatus(match)}</div>`;
-    wrap.appendChild(row);
+function createRoundColumn(title, matches, roundClass) {
+  const column = document.createElement("div");
+  column.className = `bracket-round bracket-${roundClass}`;
+  
+  const header = document.createElement("div");
+  header.className = "bracket-round-title";
+  header.textContent = title;
+  column.appendChild(header);
+  
+  const matchesContainer = document.createElement("div");
+  matchesContainer.className = "bracket-matches";
+  
+  matches.forEach(match => {
+    const matchCard = createBracketMatch(match);
+    matchesContainer.appendChild(matchCard);
   });
+  
+  column.appendChild(matchesContainer);
+  return column;
+}
+
+function createBracketMatch(match) {
+  const card = document.createElement("div");
+  card.className = "bracket-match";
+  
+  const homeTeam = match.home || "TBD";
+  const awayTeam = match.away || "TBD";
+  const homeScore = match.result?.home ?? "";
+  const awayScore = match.result?.away ?? "";
+  const isComplete = match.status === "final";
+  const winner = match.result?.winner;
+  
+  card.innerHTML = `
+    <div class="bracket-team ${winner === homeTeam ? 'winner' : ''}">
+      <span class="team-name">${homeTeam}</span>
+      ${isComplete ? `<span class="team-score">${homeScore}</span>` : ''}
+    </div>
+    <div class="bracket-divider"></div>
+    <div class="bracket-team ${winner === awayTeam ? 'winner' : ''}">
+      <span class="team-name">${awayTeam}</span>
+      ${isComplete ? `<span class="team-score">${awayScore}</span>` : ''}
+    </div>
+    ${!isComplete && match.status !== "scheduled" ? `<div class="bracket-status">${match.status.toUpperCase()}</div>` : ''}
+  `;
+  
+  return card;
 }
 
 function renderRankings() {
