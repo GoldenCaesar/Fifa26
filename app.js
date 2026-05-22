@@ -91,6 +91,12 @@ if (!state.data) {
   persistState();
 }
 
+// Initialize matches on startup
+if (!state.data.matches || state.data.matches.length === 0) {
+  state.data.matches = generateWorldCup2026Schedule();
+  persistState();
+}
+
 init();
 
 function startCountdown() {
@@ -135,7 +141,13 @@ function init() {
   wireGlobalButtons();
   hydrateSettingsForm();
   setSupabaseIndicator(false, "Supabase: Disconnected");
-  renderApp();
+  
+  // Connect to Supabase and load users FIRST before rendering
+  connectSupabase().then(() => {
+    renderApp();
+  }).catch(() => {
+    renderApp();
+  });
 }
 
 function wirePwa() {
@@ -280,8 +292,12 @@ async function loginByHandle(handle) {
     user = createNewUser(handle);
     users.push(user);
     
-    // Sync new user to Supabase
-    syncUserToSupabase(user).catch(err => {
+    console.log(`Created new user: ${handle}`);
+    
+    // Sync new user to Supabase immediately
+    syncUserToSupabase(user).then(() => {
+      console.log(`User ${handle} synced to Supabase`);
+    }).catch(err => {
       console.warn("Failed to sync user to Supabase:", err);
     });
   }
@@ -380,7 +396,10 @@ function deleteUser(userId) {
 // ── Supabase User Sync ────────────────────────────────
 
 async function syncUserToSupabase(user) {
-  if (!state.supabase) return;
+  if (!state.supabase) {
+    console.warn('Supabase not connected, cannot sync user');
+    return;
+  }
   
   try {
     // Check if user already exists
@@ -400,7 +419,11 @@ async function syncUserToSupabase(user) {
         })
         .eq('handle', user.handle);
       
-      if (error) console.warn('Supabase user update failed:', error);
+      if (error) {
+        console.warn('Supabase user update failed:', error);
+      } else {
+        console.log(`Updated user ${user.handle} in Supabase`);
+      }
     } else {
       // Insert new user
       const { error } = await state.supabase
@@ -411,7 +434,11 @@ async function syncUserToSupabase(user) {
           total_score: user.totalScore
         });
       
-      if (error) console.warn('Supabase user insert failed:', error);
+      if (error) {
+        console.warn('Supabase user insert failed:', error);
+      } else {
+        console.log(`Inserted user ${user.handle} into Supabase`);
+      }
     }
   } catch (err) {
     console.warn('Supabase sync error:', err);
@@ -447,18 +474,27 @@ async function loadUsersFromSupabase() {
     }
     
     if (dbUsers && dbUsers.length > 0) {
-      // Merge Supabase users with local users (local takes precedence)
+      console.log(`Loading ${dbUsers.length} users from Supabase...`);
+      
+      // Clear baseline users if they exist
+      const baselineNames = ['Alex', 'Nova', 'Kairo'];
+      state.data.users = state.data.users.filter(u => !baselineNames.includes(u.handle));
+      
+      // Add all users from Supabase
       dbUsers.forEach(dbUser => {
         const existingUser = state.data.users.find(u => u.handle === dbUser.handle);
-        if (!existingUser) {
-          // Add user from Supabase if not in local storage
+        if (!existingUser && dbUser.handle.toLowerCase() !== 'admin') {
+          // Create user from Supabase data
           const newUser = createNewUser(dbUser.handle);
-          newUser.balance = dbUser.balance;
-          newUser.totalScore = dbUser.total_score;
+          newUser.balance = dbUser.balance || 2450;
+          newUser.totalScore = dbUser.total_score || 0;
+          newUser.picksLocked = dbUser.total_score > 0; // If they have a score, picks are locked
           state.data.users.push(newUser);
         }
       });
+      
       persistState();
+      console.log(`Loaded users from Supabase. Total users: ${state.data.users.length}`);
     }
   } catch (err) {
     console.warn('Error loading users from Supabase:', err);
@@ -575,10 +611,20 @@ function enterApp() {
       document.getElementById("screen-app").classList.remove("active");
       document.getElementById("screen-picks").classList.remove("active");
       document.getElementById("screen-login").classList.add("active");
-      document.getElementById("handle-input").value = "";
-      document.getElementById("admin-password-input").value = "";
-      document.getElementById("admin-password-field").classList.add("hidden");
+      
+      // Reset login form completely
+      const handleInput = document.getElementById("handle-input");
+      const passwordInput = document.getElementById("admin-password-input");
+      const passwordField = document.getElementById("admin-password-field");
+      const enterBtn = document.getElementById("enter-button");
+      
+      handleInput.value = "";
+      handleInput.disabled = false;
+      passwordInput.value = "";
+      passwordField.classList.add("hidden");
+      enterBtn.innerHTML = 'Enter <i class="material-symbols-outlined">sports_soccer</i>';
       document.getElementById("login-message").textContent = "";
+      
       // Restart countdown timer
       startCountdown();
     };
@@ -1446,22 +1492,16 @@ function renderGroups() {
 function connectSupabase() {
   if (!state.config.supabaseUrl || !state.config.supabaseAnon || !window.supabase) {
     setSupabaseIndicator(false, "Supabase: Missing config");
-    return;
+    return Promise.resolve();
   }
 
   try {
     state.supabase = window.supabase.createClient(state.config.supabaseUrl, state.config.supabaseAnon);
-    testSupabaseConnection();
-    const channel = state.supabase.channel("fc26-live");
-    channel
-      .on("broadcast", { event: "event" }, (payload) => {
-        if (payload?.payload?.origin === state.data.currentUser) return;
-        renderApp();
-      })
-      .subscribe();
+    return testSupabaseConnection();
   } catch {
     setSupabaseIndicator(false, "Supabase: Connection failed");
     setStatus("settings-status", "Supabase connection failed. Check URL/anon key.");
+    return Promise.resolve();
   }
 }
 
@@ -1472,8 +1512,8 @@ async function testSupabaseConnection() {
   }
 
   try {
-    const { error } = await state.supabase.from("app_settings").select("id").limit(1);
-    if (error) {
+    const { error } = await state.supabase.from("users").select("id").limit(1);
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows, which is fine
       setSupabaseIndicator(false, "Supabase: Query failed");
       setStatus("settings-status", `Supabase query failed: ${error.message}`);
       return;
@@ -1481,10 +1521,17 @@ async function testSupabaseConnection() {
 
     setSupabaseIndicator(true, "Supabase: Connected");
     
-    // Load users from Supabase after successful connection
-    loadUsersFromSupabase().catch(err => {
-      console.warn("Failed to load users from Supabase:", err);
-    });
+    // Load users from Supabase and merge with local
+    await loadUsersFromSupabase();
+    
+    // Set up realtime channel
+    const channel = state.supabase.channel("fc26-live");
+    channel
+      .on("broadcast", { event: "event" }, (payload) => {
+        if (payload?.payload?.origin === state.data.currentUser) return;
+        renderApp();
+      })
+      .subscribe();
   } catch {
     setSupabaseIndicator(false, "Supabase: Unreachable");
   }

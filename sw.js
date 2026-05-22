@@ -1,5 +1,5 @@
-const APP_CACHE = "family-clash-shell-v10";
-const DATA_CACHE = "family-clash-data-v10";
+const APP_CACHE = "family-clash-shell-v11";
+const DATA_CACHE = "family-clash-data-v11";
 const APP_SHELL = [
   "./",
   "./index.html",
