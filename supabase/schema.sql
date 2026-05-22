@@ -6,6 +6,8 @@ create table if not exists users (
   handle text unique not null,
   balance numeric not null default 2450,
   total_score numeric not null default 2450,
+  picks_locked boolean not null default false,
+  rankings jsonb,
   created_at timestamptz not null default now()
 );
 

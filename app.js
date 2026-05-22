@@ -409,20 +409,24 @@ async function syncUserToSupabase(user) {
       .eq('handle', user.handle)
       .maybeSingle();
     
+    const userData = {
+      balance: user.balance,
+      total_score: user.totalScore,
+      picks_locked: user.picksLocked || false,
+      rankings: user.rankings || []
+    };
+    
     if (existing) {
       // Update existing user
       const { error } = await state.supabase
         .from('users')
-        .update({
-          balance: user.balance,
-          total_score: user.totalScore
-        })
+        .update(userData)
         .eq('handle', user.handle);
       
       if (error) {
         console.warn('Supabase user update failed:', error);
       } else {
-        console.log(`Updated user ${user.handle} in Supabase`);
+        console.log(`Updated user ${user.handle} in Supabase (picks: ${user.rankings?.length || 0})`);
       }
     } else {
       // Insert new user
@@ -430,8 +434,7 @@ async function syncUserToSupabase(user) {
         .from('users')
         .insert({
           handle: user.handle,
-          balance: user.balance,
-          total_score: user.totalScore
+          ...userData
         });
       
       if (error) {
@@ -488,8 +491,10 @@ async function loadUsersFromSupabase() {
           const newUser = createNewUser(dbUser.handle);
           newUser.balance = dbUser.balance || 2450;
           newUser.totalScore = dbUser.total_score || 0;
-          newUser.picksLocked = dbUser.total_score > 0; // If they have a score, picks are locked
+          newUser.picksLocked = dbUser.picks_locked || false;
+          newUser.rankings = dbUser.rankings || [];
           state.data.users.push(newUser);
+          console.log(`Loaded user ${dbUser.handle} from Supabase (picks: ${newUser.rankings.length}, locked: ${newUser.picksLocked})`);
         }
       });
       
@@ -1095,9 +1100,18 @@ function renderBracket() {
   
   // Get knockout matches (after group stage)
   const allMatches = state.data.matches || [];
+  console.log(`Total matches: ${allMatches.length}`);
+  
   const knockoutMatches = allMatches.filter(m => 
     m.round && !m.round.includes("Group")
   );
+  
+  console.log(`Knockout matches: ${knockoutMatches.length}`);
+  
+  if (knockoutMatches.length === 0) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Knockout stage matches will appear here once available.</div>';
+    return;
+  }
   
   // Organize by round
   const rounds = {
@@ -1108,6 +1122,15 @@ function renderBracket() {
     bronze: knockoutMatches.filter(m => m.round === "Third Place"),
     final: knockoutMatches.filter(m => m.round === "Final")
   };
+  
+  console.log('Rounds:', {
+    r32: rounds.r32.length,
+    r16: rounds.r16.length,
+    qf: rounds.qf.length,
+    sf: rounds.sf.length,
+    bronze: rounds.bronze.length,
+    final: rounds.final.length
+  });
   
   // Create bracket container
   const bracketContainer = document.createElement("div");
