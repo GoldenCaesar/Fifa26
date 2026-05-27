@@ -530,7 +530,6 @@ select {
 
 .main-view {
   padding: 12px 14px calc(84px + var(--safe-bottom));
-  overflow-x: hidden;
 }
 
 .view {

@@ -291,61 +291,9 @@ function wireSettings() {
     btn.innerHTML = 'Force Daily Refresh <i class="material-symbols-outlined">autorenew</i>';
     status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
   });
-
-  // Home page test button handler
-  const testBtn = document.getElementById("test-edge-function-btn");
-  if (testBtn) {
-    testBtn.addEventListener("click", async () => {
-      const output = document.getElementById("test-output");
-      output.style.display = "block";
-      output.textContent = "🔄 Calling Edge Function...\n\n";
-      
-      testBtn.disabled = true;
-      testBtn.innerHTML = '<i class="material-symbols-outlined">hourglass_empty</i> Testing...';
-      
-      try {
-        console.log("=== TEST: Calling Edge Function ===");
-        console.log("Supabase client:", state.supabase ? "Connected" : "Not connected");
-        
-        if (!state.supabase) {
-          output.textContent += "❌ ERROR: Supabase not connected!\n";
-          testBtn.disabled = false;
-          testBtn.innerHTML = '<i class="material-symbols-outlined">cloud_download</i> Test Fetch from Odds API';
-          return;
-        }
-        
-        const startTime = Date.now();
-        const { data, error } = await state.supabase.functions.invoke("daily-refresh");
-        const elapsed = Date.now() - startTime;
-        
-        console.log("Edge Function response:", { data, error, elapsed });
-        
-        if (error) {
-          output.textContent += `❌ ERROR:\n${JSON.stringify(error, null, 2)}\n`;
-          console.error("Edge Function error:", error);
-        } else {
-          output.textContent += `✅ SUCCESS! (${elapsed}ms)\n\n`;
-          output.textContent += `📊 Result:\n${JSON.stringify(data, null, 2)}\n\n`;
-          
-          if (data.success) {
-            output.textContent += `✅ Loaded ${data.matchCount} matches from ${data.source}\n`;
-            output.textContent += `\n🔄 Reloading matches from database...\n`;
-            
-            await loadWorldCupMatchesFromDatabase();
-            renderApp();
-            
-            output.textContent += `✅ App updated with ${state.data.matches.length} matches!\n`;
-          }
-        }
-      } catch (err) {
-        output.textContent += `❌ EXCEPTION:\n${err.message}\n${err.stack}\n`;
-        console.error("Test failed:", err);
-      } finally {
-        testBtn.disabled = false;
-        testBtn.innerHTML = '<i class="material-symbols-outlined">cloud_download</i> Test Fetch from Odds API';
-      }
-    });
-  }
+  
+  // Set up automatic midnight refresh check
+  setupMidnightRefresh();
 }
 
 function hydrateSettingsForm() {
@@ -881,10 +829,17 @@ async function runDailyRefresh(force) {
   const todayKey = toYmd(now, state.config.timezone);
   if (!force && state.data.cache.lastRefreshYmd === todayKey) return;
 
-  console.log("Running daily refresh - fetching matches from Supabase...");
+  console.log("Running daily refresh...");
   
-  // Fetch World Cup matches from Supabase (populated by Edge Function with real API data)
-  await loadWorldCupMatchesFromDatabase();
+  // Check if we need to fetch fresh data from API (only once per day at midnight)
+  const needsApiFetch = await shouldFetchFromApi(todayKey);
+  if (needsApiFetch) {
+    console.log("Fetching fresh match data from Odds API via Edge Function...");
+    await callEdgeFunctionRefresh();
+  } else {
+    console.log("Using cached match data from database (already up to date)");
+    await loadWorldCupMatchesFromDatabase();
+  }
   
   lockTodaysMatches(todayKey);
   settleYesterdayBets(todayKey);
@@ -896,6 +851,36 @@ async function runDailyRefresh(force) {
   state.data.cache.lastRefreshYmd = todayKey;
   state.data.cache.lastRefreshedAt = now.toISOString();
   persistState();
+}
+
+async function shouldFetchFromApi(todayKey) {
+  if (!state.supabase) return false;
+  
+  try {
+    // Check cache_metadata table to see when data was last fetched from API
+    const { data, error } = await state.supabase
+      .from("cache_metadata")
+      .select("last_refresh_ymd")
+      .eq("id", 1)
+      .single();
+    
+    if (error || !data) {
+      console.log("No cache metadata found - need to fetch from API");
+      return true;
+    }
+    
+    // If last refresh was today, use cached data
+    if (data.last_refresh_ymd === todayKey) {
+      console.log(`Cache is up to date (last refreshed: ${data.last_refresh_ymd})`);
+      return false;
+    }
+    
+    console.log(`Cache is stale (last refreshed: ${data.last_refresh_ymd}, today: ${todayKey})`);
+    return true;
+  } catch (err) {
+    console.error("Error checking cache metadata:", err);
+    return false; // Don't fetch on error, use existing data
+  }
 }
 
 async function loadWorldCupMatchesFromDatabase() {
@@ -1359,12 +1344,15 @@ function renderUpcomingMatches() {
     const matchDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     
+    // Convert UTC time to PST
+    const pstTime = convertUtcToPst(match.time);
+    
     card.innerHTML = `
       <div class="match-teams">${match.home} <span style="color:var(--muted)">vs</span> ${match.away}</div>
       <div class="match-details">
         <span>${dateStr}</span>
         <span style="color:var(--muted)">&bull;</span>
-        <span>${match.time}</span>
+        <span>${pstTime} PST</span>
         ${match.round || match.group ? `<span style="color:var(--muted)">&bull;</span><span>${match.round || match.group}</span>` : ''}
       </div>
     `;
@@ -1735,16 +1723,108 @@ function renderGroups() {
   const host = document.getElementById("group-list");
   host.innerHTML = "";
 
-  Object.entries(GROUPS).forEach(([name, teams]) => {
+  // Calculate real standings from match results
+  const groupStandings = calculateGroupStandings();
+
+  Object.entries(WC_2026_GROUPS).forEach(([groupLetter, teams]) => {
     const card = document.createElement("article");
     card.className = "group-card";
-    const rows = teams
-      .map((team) => `<li>${team} <strong>${Math.floor(Math.random() * 10)}</strong></li>`)
+    
+    // Get standings for this group
+    const standings = groupStandings[groupLetter] || {};
+    
+    // Sort teams by points (wins=3, draws=1, loss=0)
+    const sortedTeams = teams
+      .map(team => {
+        const stats = standings[team] || { points: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
+        return { team, ...stats };
+      })
+      .sort((a, b) => {
+        // Sort by points, then goal difference, then goals scored
+        if (b.points !== a.points) return b.points - a.points;
+        const gdA = a.goalsFor - a.goalsAgainst;
+        const gdB = b.goalsFor - b.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        return b.goalsFor - a.goalsFor;
+      });
+
+    const rows = sortedTeams
+      .map((item) => {
+        const gd = item.goalsFor - item.goalsAgainst;
+        const gdStr = gd > 0 ? `+${gd}` : gd;
+        return `<li>
+          <span style="flex:1">${item.team}</span>
+          <strong style="min-width:30px;text-align:center">${item.points} pts</strong>
+          <span style="min-width:60px;text-align:center;color:var(--muted);font-size:0.9em">${item.wins}-${item.draws}-${item.losses}</span>
+        </li>`;
+      })
       .join("");
 
-    card.innerHTML = `<h4>${name}</h4><ul>${rows}</ul>`;
+    card.innerHTML = `
+      <h4>Group ${groupLetter}</h4>
+      <ul style="display:flex;flex-direction:column;gap:8px">${rows}</ul>
+    `;
     host.appendChild(card);
   });
+}
+
+function calculateGroupStandings() {
+  const standings = {};
+  
+  // Initialize standings for all groups
+  Object.entries(WC_2026_GROUPS).forEach(([groupLetter, teams]) => {
+    standings[groupLetter] = {};
+    teams.forEach(team => {
+      standings[groupLetter][team] = {
+        points: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goalsFor: 0,
+        goalsAgainst: 0
+      };
+    });
+  });
+  
+  // Calculate standings from completed group stage matches
+  state.data.matches
+    .filter(m => m.group && m.status === "final" && m.resultHome != null && m.resultAway != null)
+    .forEach(match => {
+      const groupLetter = match.group.replace("Group ", "");
+      if (!standings[groupLetter]) return;
+      
+      const homeStats = standings[groupLetter][match.home];
+      const awayStats = standings[groupLetter][match.away];
+      
+      if (!homeStats || !awayStats) return;
+      
+      // Update goals
+      homeStats.goalsFor += match.resultHome;
+      homeStats.goalsAgainst += match.resultAway;
+      awayStats.goalsFor += match.resultAway;
+      awayStats.goalsAgainst += match.resultHome;
+      
+      // Update points and record
+      if (match.resultHome > match.resultAway) {
+        // Home win
+        homeStats.wins++;
+        homeStats.points += 3;
+        awayStats.losses++;
+      } else if (match.resultAway > match.resultHome) {
+        // Away win
+        awayStats.wins++;
+        awayStats.points += 3;
+        homeStats.losses++;
+      } else {
+        // Draw
+        homeStats.draws++;
+        awayStats.draws++;
+        homeStats.points++;
+        awayStats.points++;
+      }
+    });
+  
+  return standings;
 }
 
 function connectSupabase() {
@@ -2227,6 +2307,41 @@ function shiftYmd(ymd, shift) {
 
 function slug(text) {
   return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function convertUtcToPst(utcTimeString) {
+  // Convert UTC time (e.g., "19:00") to PST time (e.g., "12:00 PM")
+  const [hours, minutes] = utcTimeString.split(":").map(Number);
+  
+  // PST is UTC-8, PDT is UTC-7
+  // For simplicity, using UTC-7 (PDT) since World Cup is in June/July
+  const pstHours = (hours - 7 + 24) % 24;
+  
+  // Format to 12-hour time
+  const period = pstHours >= 12 ? "PM" : "AM";
+  const displayHours = pstHours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, "0");
+  
+  return `${displayHours}:${displayMinutes} ${period}`;
+}
+
+function setupMidnightRefresh() {
+  // Check every minute if we've crossed midnight PST
+  let lastCheckedDay = toYmd(new Date(), "America/Los_Angeles");
+  
+  setInterval(() => {
+    const currentDay = toYmd(new Date(), "America/Los_Angeles");
+    
+    if (currentDay !== lastCheckedDay) {
+      console.log(`Midnight crossed (PST). New day: ${currentDay}. Running daily refresh...`);
+      lastCheckedDay = currentDay;
+      runDailyRefresh(false).catch(err => {
+        console.error("Auto midnight refresh failed:", err);
+      });
+    }
+  }, 60000); // Check every minute
+  
+  console.log("Midnight auto-refresh timer initialized (checks every minute)");
 }
 
 function setStatus(id, text) {
