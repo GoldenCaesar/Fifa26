@@ -648,6 +648,32 @@ function enterApp() {
     });
   }
   
+  // Wire up clear cache & refresh button
+  const clearCacheBtn = document.getElementById("clear-cache-btn");
+  if (clearCacheBtn) {
+    clearCacheBtn.onclick = () => {
+      // Clear localStorage
+      localStorage.clear();
+      
+      // Clear service worker cache
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      
+      // Unregister service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(reg => reg.unregister());
+        });
+      }
+      
+      // Force reload from server (bypass cache)
+      window.location.reload(true);
+    };
+  }
+  
   // Wire up sign out button
   const signoutBtn = document.getElementById("signout-btn");
   if (signoutBtn) {

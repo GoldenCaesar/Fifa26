@@ -459,6 +459,10 @@ select {
   color: var(--danger);
 }
 
+#clear-cache-btn i {
+  color: var(--primary);
+}
+
 .admin-section {
   border: 1px solid rgba(255, 215, 0, 0.18);
 }
