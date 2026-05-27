@@ -93,8 +93,19 @@ if (!state.data) {
 
 // Initialize matches on startup
 if (!state.data.matches || state.data.matches.length === 0) {
+  console.log("No matches found, generating World Cup 2026 schedule");
   state.data.matches = generateWorldCup2026Schedule();
   persistState();
+} else {
+  // Check if knockout matches exist, if not, regenerate all matches
+  const hasKnockoutMatches = state.data.matches.some(m => 
+    m.round && !m.round.includes("Group")
+  );
+  if (!hasKnockoutMatches) {
+    console.log("No knockout matches found in existing data, regenerating schedule");
+    state.data.matches = generateWorldCup2026Schedule();
+    persistState();
+  }
 }
 
 init();
@@ -335,7 +346,19 @@ function switchView(target) {
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("active"));
   document.getElementById(`view-${target}`).classList.add("active");
   document.querySelector(`.nav-item[data-target='${target}']`).classList.add("active");
-  if (target === "settings" && state.isAdmin) {
+  
+  // Re-render content when switching views
+  if (target === "home") {
+    renderHomeGraph(false);
+    renderBracket();
+  } else if (target === "rankings") {
+    renderRankings();
+  } else if (target === "standings") {
+    renderMatches();
+    renderCommunity();
+    renderHistory();
+    renderGroups();
+  } else if (target === "settings" && state.isAdmin) {
     renderAdminPanel();
   }
 }
@@ -901,6 +924,7 @@ function recordDailyScores(dayYmd) {
 }
 
 function renderApp() {
+  console.log("renderApp called, currentUser:", state.data?.currentUser);
   if (!state.data.currentUser) return;
   renderHomeGraph(false);
   renderBracket();
@@ -1095,7 +1119,12 @@ function renderSimpleBarChart(ctx, users, colors, width, height) {
 
 
 function renderBracket() {
+  console.log("renderBracket called");
   const wrap = document.getElementById("bracket-wrap");
+  if (!wrap) {
+    console.error("bracket-wrap element not found!");
+    return;
+  }
   wrap.innerHTML = "";
   
   // Get knockout matches (after group stage)
