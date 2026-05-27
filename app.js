@@ -35,16 +35,16 @@ const GROUPS = {
 };
 
 // FIFA World Cup 2026 - Official Groups (48 teams, 12 groups)
-// Based on actual tournament draw
+// Based on actual tournament draw from Google search results
 const WC_2026_GROUPS = {
-  "A": ["Mexico", "South Africa", "Iraq", "New Zealand"],
+  "A": ["Mexico", "South Africa", "South Korea", "Czechia"],
   "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
-  "C": ["Brazil", "Morocco", "Egypt", "Wales"],
-  "D": ["USA", "Paraguay", "South Korea", "Czechia"],
+  "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
+  "D": ["USA", "Paraguay", "Australia", "Türkiye"],
   "E": ["England", "Netherlands", "Tunisia", "Costa Rica"],
   "F": ["France", "Denmark", "Saudi Arabia", "Peru"],
   "G": ["Spain", "Croatia", "Iran", "Jamaica"],
-  "H": ["Argentina", "Poland", "Ukraine", "Australia"],
+  "H": ["Argentina", "Poland", "Ukraine", "Wales"],
   "I": ["Portugal", "Belgium", "Senegal", "Japan"],
   "J": ["Germany", "Italy", "Colombia", "Ecuador"],
   "K": ["Uruguay", "Norway", "Algeria", "Panama"],
@@ -53,25 +53,24 @@ const WC_2026_GROUPS = {
 
 // Full FIFA World Cup 2026 team roster (alphabetical)
 const WC_TEAMS = [
-  "Albania", "Algeria", "Argentina", "Australia", "Austria",
-  "Belgium", "Bolivia", "Brazil",
-  "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czech Republic",
-  "Denmark", "DR Congo",
+  "Algeria", "Argentina", "Australia", "Austria",
+  "Belgium", "Bosnia and Herzegovina", "Brazil",
+  "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czechia",
+  "Denmark",
   "Ecuador", "Egypt", "England",
   "France",
-  "Germany", "Ghana", "Greece",
-  "Honduras", "Hungary",
-  "Iran", "Italy", "Ivory Coast",
-  "Jamaica", "Japan", "Jordan",
+  "Germany", "Ghana",
+  "Haiti", "Honduras",
+  "Iran", "Italy",
+  "Jamaica", "Japan",
   "Mexico", "Morocco",
-  "Netherlands", "New Zealand", "Nigeria", "Norway",
+  "Netherlands", "Norway",
   "Panama", "Paraguay", "Peru", "Poland", "Portugal",
-  "Romania",
-  "Saudi Arabia", "Scotland", "Senegal", "Serbia", "Slovakia", "Slovenia",
-  "South Africa", "South Korea", "Spain", "Sweden", "Switzerland",
-  "Turkey",
-  "Ukraine", "Uruguay", "USA", "Uzbekistan",
-  "Venezuela"
+  "Qatar",
+  "Saudi Arabia", "Scotland", "Senegal", "Serbia", "South Africa", "South Korea", "Spain", "Switzerland",
+  "Tunisia", "T\u00fcrkiye",
+  "Ukraine", "Uruguay", "USA",
+  "Wales"
 ];
 
 let picksState = [];
@@ -103,9 +102,17 @@ if (!state.data.matches || state.data.matches.length === 0) {
   const hasKnockoutMatches = state.data.matches.some(m => 
     m.round && !m.round.includes("Group")
   );
-  console.log(`Existing matches: ${state.data.matches.length}, Has knockout matches: ${hasKnockoutMatches}`);
-  if (!hasKnockoutMatches) {
-    console.log("No knockout matches found in existing data, regenerating schedule");
+  
+  // Check if group teams match current WC_2026_GROUPS (detect if groups changed)
+  const groupMatches = state.data.matches.filter(m => m.group);
+  const hasCorrectGroups = groupMatches.length > 0 && groupMatches.some(m => 
+    m.home === "Mexico" || m.home === "Czechia" || m.home === "Haiti" || m.home === "T\u00fcrkiye"
+  );
+  
+  console.log(`Existing matches: ${state.data.matches.length}, Has knockout matches: ${hasKnockoutMatches}, Has correct groups: ${hasCorrectGroups}`);
+  
+  if (!hasKnockoutMatches || !hasCorrectGroups) {
+    console.log("Match data outdated, regenerating schedule with new groups");
     state.data.matches = generateWorldCup2026Schedule();
     console.log(`Regenerated ${state.data.matches.length} matches`);
     persistState();
@@ -272,12 +279,17 @@ function wireSettings() {
 
   document.getElementById("admin-refresh-btn").addEventListener("click", async () => {
     const btn = document.getElementById("admin-refresh-btn");
+    const status = document.getElementById("admin-refresh-status");
+    
     btn.disabled = true;
-    setStatus("admin-refresh-status", "Refreshing...");
-    await runDailyRefresh(true);
-    renderApp();
-    setStatus("admin-refresh-status", "Daily refresh complete.");
+    btn.innerHTML = 'Fetching from APIs... <i class="material-symbols-outlined">hourglass_empty</i>';
+    status.textContent = "Calling Edge Function to fetch real match data from sports APIs...";
+    
+    await callEdgeFunctionRefresh();
+    
     btn.disabled = false;
+    btn.innerHTML = 'Force Daily Refresh <i class="material-symbols-outlined">autorenew</i>';
+    status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
   });
 }
 
@@ -664,9 +676,10 @@ function enterApp() {
   }
   
   switchView("home");
-  // Don't run daily refresh on app enter - it overwrites the World Cup schedule
-  // runDailyRefresh(false).then(renderApp);
-  renderApp();
+  // Load matches from database and then render
+  loadWorldCupMatchesFromDatabase().then(() => {
+    renderApp();
+  });
   connectSupabase();
 }
 
@@ -813,9 +826,11 @@ async function runDailyRefresh(force) {
   const todayKey = toYmd(now, state.config.timezone);
   if (!force && state.data.cache.lastRefreshYmd === todayKey) return;
 
-  // Don't use refreshScheduleWindow - it overwrites the World Cup 2026 schedule
-  // Instead, just settle bets and update scores
-  // await refreshScheduleWindow(now);
+  console.log("Running daily refresh - fetching matches from Supabase...");
+  
+  // Fetch World Cup matches from Supabase (populated by Edge Function with real API data)
+  await loadWorldCupMatchesFromDatabase();
+  
   lockTodaysMatches(todayKey);
   settleYesterdayBets(todayKey);
   recomputeLeaderboard();
@@ -826,6 +841,53 @@ async function runDailyRefresh(force) {
   state.data.cache.lastRefreshYmd = todayKey;
   state.data.cache.lastRefreshedAt = now.toISOString();
   persistState();
+}
+
+async function loadWorldCupMatchesFromDatabase() {
+  if (!state.supabase) {
+    console.warn("Supabase not connected - using local fallback");
+    if (state.data.matches.length === 0) {
+      state.data.matches = generateWorldCup2026Schedule();
+    }
+    return;
+  }
+
+  try {
+    console.log("Fetching all World Cup 2026 matches from database...");
+    
+    // Fetch ALL World Cup matches from June 11 to July 19, 2026
+    const { data, error } = await state.supabase
+      .from("matches")
+      .select("*")
+      .gte("day", "2026-06-11")
+      .lte("day", "2026-07-19")
+      .order("day", { ascending: true })
+      .order("kickoff_time", { ascending: true });
+
+    if (error) {
+      console.error("Database fetch error:", error);
+      if (state.data.matches.length === 0) {
+        state.data.matches = generateWorldCup2026Schedule();
+      }
+      return;
+    }
+
+    if (data && data.length > 0) {
+      console.log(`Loaded ${data.length} matches from database`);
+      state.data.matches = data.map(convertDbMatchToApp);
+      persistState();
+    } else {
+      console.warn("No matches in database - using local fallback");
+      if (state.data.matches.length === 0) {
+        state.data.matches = generateWorldCup2026Schedule();
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load matches from database:", err);
+    if (state.data.matches.length === 0) {
+      state.data.matches = generateWorldCup2026Schedule();
+    }
+  }
 }
 
 async function refreshScheduleWindow(now) {
@@ -951,8 +1013,8 @@ function renderHomeGraph(withBurst) {
   const width = canvas.width;
   const height = canvas.height;
   
-  // Exclude admin from leaderboard
-  const users = state.data.users.filter(u => u.picksLocked && u.handle.toLowerCase() !== "admin");
+  // Exclude admin from leaderboard, show all users regardless of picks status
+  const users = state.data.users.filter(u => u.handle.toLowerCase() !== "admin");
   const colors = ["#ff00ff", "#39ff14", "#ffd700", "#8fb7ff", "#ff955e"];
 
   ctx.clearRect(0, 0, width, height);
@@ -1237,8 +1299,9 @@ function renderUpcomingMatches() {
     card.style.cursor = "pointer";
     card.title = "Click to view betting options";
     
-    // Format date nicely
-    const matchDate = new Date(match.day + "T00:00:00Z");
+    // Format date nicely - parse as local date, not UTC
+    const [year, month, day] = match.day.split("-");
+    const matchDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     
     card.innerHTML = `
@@ -1364,8 +1427,9 @@ function renderMatches() {
 
       const liveUrl = `https://www.google.com/search?q=${encodeURIComponent(`${match.home} vs ${match.away} live score`)}`;
       
-      // Format date nicely
-      const matchDate = new Date(match.day + "T00:00:00Z");
+      // Format date nicely - parse as local date, not UTC
+      const [year, month, day] = match.day.split("-");
+      const matchDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
       const groupOrRound = match.group || match.round || "";
 
@@ -1636,11 +1700,43 @@ function connectSupabase() {
 
   try {
     state.supabase = window.supabase.createClient(state.config.supabaseUrl, state.config.supabaseAnon);
-    return testSupabaseConnection();
+    return testSupabaseConnection().then(() => {
+      // After connecting, load World Cup matches from database
+      loadWorldCupMatchesFromDatabase();
+    });
   } catch {
     setSupabaseIndicator(false, "Supabase: Connection failed");
     setStatus("settings-status", "Supabase connection failed. Check URL/anon key.");
     return Promise.resolve();
+  }
+}
+
+async function callEdgeFunctionRefresh() {
+  if (!state.supabase) {
+    alert("Supabase not connected. Configure it in Settings first.");
+    return;
+  }
+
+  try {
+    console.log("Calling Edge Function to fetch matches from sports APIs...");
+    
+    const { data, error } = await state.supabase.functions.invoke("daily-refresh");
+
+    if (error) {
+      console.error("Edge Function error:", error);
+      alert(`Edge Function failed: ${error.message || 'Unknown error'}`);
+      return;
+    }
+
+    console.log("Edge Function response:", data);
+    alert("Successfully fetched matches from sports APIs! Reloading matches...");
+    
+    // Reload matches after Edge Function populates database
+    await loadWorldCupMatchesFromDatabase();
+    renderApp();
+  } catch (err) {
+    console.error("Failed to call Edge Function:", err);
+    alert(`Error: ${err.message}`);
   }
 }
 
@@ -1810,7 +1906,7 @@ function generateWorldCup2026Schedule() {
     groupMatches.forEach((match, idx) => {
       const dayOffset = Math.floor(matchId / 8); // 8 matches per day
       const slotInDay = matchId % 8;
-      const matchTime = ["11:00", "13:00", "15:00", "17:00", "19:00", "21:00", "11:00", "13:00"][slotInDay];
+      const matchTime = ["12:00", "15:00", "18:00", "19:00", "12:00", "15:00", "18:00", "19:00"][slotInDay];
       const date = shiftYmd("2026-06-11", dayOffset);
       
       matches.push({

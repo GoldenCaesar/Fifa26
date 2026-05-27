@@ -215,8 +215,8 @@
               <div class="panel-head">
                 <h3><i class="material-symbols-outlined">autorenew</i> Daily Refresh</h3>
               </div>
-              <p class="inline-note">Force a fresh fetch of today's matches and odds from the server.</p>
-              <button id="admin-refresh-btn" class="btn btn-primary" style="width:100%;margin-top:10px">Force Daily Refresh <i class="material-symbols-outlined">autorenew</i></button>
+              <p class="inline-note">Calls the <strong>Supabase Edge Function</strong> to fetch real match data from your sports APIs (Odds API & API-Football). The Edge Function must be deployed first - see <code>EDGE_FUNCTION_DEPLOYMENT.md</code></p>
+              <button id="admin-refresh-btn" class="btn btn-primary" style="width:100%;margin-top:10px">Fetch Matches from APIs <i class="material-symbols-outlined">cloud_download</i></button>
               <div id="admin-refresh-status" class="inline-note" style="margin-top:8px"></div>
             </article>
           </div>
