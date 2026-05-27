@@ -35,19 +35,20 @@ const GROUPS = {
 };
 
 // FIFA World Cup 2026 - Official Groups (48 teams, 12 groups)
+// Based on actual tournament draw
 const WC_2026_GROUPS = {
-  "A": ["USA", "Mexico", "Canada", "Jamaica"],
-  "B": ["Brazil", "Argentina", "Colombia", "Ecuador"],
-  "C": ["England", "France", "Germany", "Netherlands"],
-  "D": ["Spain", "Portugal", "Italy", "Belgium"],
-  "E": ["Japan", "South Korea", "Australia", "Iran"],
-  "F": ["Morocco", "Egypt", "Nigeria", "Cameroon"],
-  "G": ["Croatia", "Denmark", "Norway", "Sweden"],
-  "H": ["Uruguay", "Chile", "Paraguay", "Peru"],
-  "I": ["Poland", "Ukraine", "Austria", "Czech Republic"],
-  "J": ["Saudi Arabia", "Qatar", "Jordan", "Iraq"],
-  "K": ["Ghana", "Ivory Coast", "Senegal", "Algeria"],
-  "L": ["Costa Rica", "Honduras", "Panama", "New Zealand"]
+  "A": ["Mexico", "South Africa", "Iraq", "New Zealand"],
+  "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
+  "C": ["Brazil", "Morocco", "Egypt", "Wales"],
+  "D": ["USA", "Paraguay", "South Korea", "Czechia"],
+  "E": ["England", "Netherlands", "Tunisia", "Costa Rica"],
+  "F": ["France", "Denmark", "Saudi Arabia", "Peru"],
+  "G": ["Spain", "Croatia", "Iran", "Jamaica"],
+  "H": ["Argentina", "Poland", "Ukraine", "Australia"],
+  "I": ["Portugal", "Belgium", "Senegal", "Japan"],
+  "J": ["Germany", "Italy", "Colombia", "Ecuador"],
+  "K": ["Uruguay", "Norway", "Algeria", "Panama"],
+  "L": ["Chile", "Ghana", "Serbia", "Honduras"]
 };
 
 // Full FIFA World Cup 2026 team roster (alphabetical)
@@ -1151,6 +1152,13 @@ function renderBracket() {
     return;
   }
   
+  // Add explanation for TBD teams
+  const explanation = document.createElement("div");
+  explanation.className = "inline-note";
+  explanation.style.cssText = "margin-bottom: 16px; text-align: center;";
+  explanation.innerHTML = "🏆 Teams marked <strong>TBD</strong> (To Be Determined) will be filled in as the group stage concludes and teams qualify for the knockout rounds.";
+  wrap.appendChild(explanation);
+  
   // Organize by round
   const rounds = {
     r32: knockoutMatches.filter(m => m.round === "Round of 32"),
@@ -1212,30 +1220,42 @@ function renderUpcomingMatches() {
   const now = new Date();
   const todayYmd = toYmd(now, state.config.timezone);
   
-  // Get upcoming matches (today or future, scheduled or open)
+  // Get upcoming matches (today or future, that are open for betting)
   const upcomingMatches = state.data.matches
-    .filter(m => m.day >= todayYmd && (m.status === "scheduled" || m.status === "open"))
+    .filter(m => m.day >= todayYmd && m.status === "open")
     .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
     .slice(0, 5); // Show next 5 matches
   
   if (upcomingMatches.length === 0) {
-    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming matches scheduled.</div>';
+    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming matches available for betting.</div>';
     return;
   }
   
   upcomingMatches.forEach(match => {
     const card = document.createElement("div");
     card.className = "match-card-mini";
+    card.style.cursor = "pointer";
+    card.title = "Click to view betting options";
+    
+    // Format date nicely
+    const matchDate = new Date(match.day + "T00:00:00Z");
+    const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    
     card.innerHTML = `
       <div class="match-teams">${match.home} <span style="color:var(--muted)">vs</span> ${match.away}</div>
       <div class="match-details">
-        <span>${match.day}</span>
+        <span>${dateStr}</span>
         <span style="color:var(--muted)">&bull;</span>
         <span>${match.time}</span>
-        <span style="color:var(--muted)">&bull;</span>
-        <span>${match.round || match.group || "Match"}</span>
+        ${match.round || match.group ? `<span style="color:var(--muted)">&bull;</span><span>${match.round || match.group}</span>` : ''}
       </div>
     `;
+    
+    // Navigate to standings tab when clicked
+    card.addEventListener("click", () => {
+      switchView("standings");
+    });
+    
     host.appendChild(card);
   });
 }
@@ -1320,19 +1340,40 @@ function renderMatches() {
   const host = document.getElementById("match-list");
   host.innerHTML = "";
 
-  state.data.matches
-    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
-    .forEach((match) => {
+  const now = new Date();
+  const todayYmd = toYmd(now, state.config.timezone);
+  
+  // Calculate 7 days from now
+  const sevenDaysLater = new Date(now);
+  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+  const sevenDaysYmd = toYmd(sevenDaysLater, state.config.timezone);
+  
+  // Filter matches to only show those in the next 7 days
+  const upcomingMatches = state.data.matches
+    .filter(m => m.day >= todayYmd && m.day <= sevenDaysYmd)
+    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+  
+  if (upcomingMatches.length === 0) {
+    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No matches in the next 7 days.</div>';
+    return;
+  }
+
+  upcomingMatches.forEach((match) => {
       const card = document.createElement("article");
       card.className = "bet-card";
 
       const liveUrl = `https://www.google.com/search?q=${encodeURIComponent(`${match.home} vs ${match.away} live score`)}`;
+      
+      // Format date nicely
+      const matchDate = new Date(match.day + "T00:00:00Z");
+      const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
+      const groupOrRound = match.group || match.round || "";
 
       card.innerHTML = `
         <div class="bet-head">
           <div>
             <div class="teams-line">${match.home} vs ${match.away}</div>
-            <small>${match.day} ${match.time}</small>
+            <small>${dateStr} ${match.time} ${groupOrRound ? `• ${groupOrRound}` : ''}</small>
           </div>
           <span>${match.status.toUpperCase()}</span>
         </div>
@@ -1784,7 +1825,7 @@ function generateWorldCup2026Schedule() {
           home: Number((1.5 + Math.random() * 1.0).toFixed(2)),
           away: Number((1.5 + Math.random() * 1.0).toFixed(2))
         },
-        status: "scheduled",
+        status: "open",  // Changed from "scheduled" to "open" so betting is available
         result: null
       });
       

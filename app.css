@@ -535,13 +535,10 @@ select {
 
 .view {
   display: none;
-  transform: translateX(30px) scale(0.98);
-  opacity: 0;
 }
 
 .view.active {
   display: block;
-  animation: spring-in 420ms var(--spring) forwards;
 }
 
 .panel {
@@ -605,24 +602,25 @@ select {
   overflow-y: hidden;
   padding: 20px 0;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
 
 .bracket-wrap::-webkit-scrollbar {
-  height: 8px;
+  height: 10px;
 }
 
 .bracket-wrap::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
 }
 
 .bracket-wrap::-webkit-scrollbar-thumb {
-  background: rgba(255, 0, 255, 0.3);
-  border-radius: 4px;
+  background: rgba(255, 0, 255, 0.5);
+  border-radius: 5px;
 }
 
 .bracket-wrap::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 0, 255, 0.5);
+  background: rgba(255, 0, 255, 0.7);
 }
 
 .bracket-container {
@@ -630,6 +628,7 @@ select {
   gap: 40px;
   min-width: min-content;
   padding: 10px;
+  width: max-content;
 }
 
 .bracket-round {
@@ -1210,14 +1209,18 @@ select {
     padding-bottom: 100px;
   }
 
-  .view#view-home {
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: 12px;
-  }
-
   .view#view-home.active {
     display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .graph-panel {
+    grid-column: 1 / -1;
+  }
+  
+  .bracket-panel {
+    grid-column: 1 / -1;
   }
 
   .team-cards {
