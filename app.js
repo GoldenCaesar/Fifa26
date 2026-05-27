@@ -1720,7 +1720,11 @@ async function callEdgeFunctionRefresh() {
   try {
     console.log("Calling Edge Function to fetch matches from sports APIs...");
     
-    const { data, error } = await state.supabase.functions.invoke("daily-refresh");
+    const { data, error } = await state.supabase.functions.invoke("daily-refresh", {
+      headers: {
+        "x-refresh-token": "secret123" // Match the token set in Supabase secrets
+      }
+    });
 
     if (error) {
       console.error("Edge Function error:", error);
@@ -1729,11 +1733,14 @@ async function callEdgeFunctionRefresh() {
     }
 
     console.log("Edge Function response:", data);
-    alert("Successfully fetched matches from sports APIs! Reloading matches...");
     
-    // Reload matches after Edge Function populates database
-    await loadWorldCupMatchesFromDatabase();
-    renderApp();
+    if (data.success) {
+      alert(`Success! Loaded ${data.matchCount} matches from ${data.source}. Reloading app...`);
+      await loadWorldCupMatchesFromDatabase();
+      renderApp();
+    } else {
+      alert(`Error: ${data.error || 'Unknown error'}\n${data.note || ''}`);
+    }
   } catch (err) {
     console.error("Failed to call Edge Function:", err);
     alert(`Error: ${err.message}`);

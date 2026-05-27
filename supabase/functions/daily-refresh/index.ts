@@ -45,62 +45,71 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     
-    // Get next 7 days
-    const today = new Date();
-    const days: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() + i);
-      days.push(d.toISOString().split("T")[0]); // YYYY-MM-DD
-    }
-
-    // Fetch or generate matches for each day
-    for (const day of days) {
-      // Check if we already have odds for this day
-      const { data: existing } = await supabase
-        .from("matches")
-        .select("id")
-        .eq("day", day)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        console.log(`Skipping ${day} - already cached`);
-        continue;
-      }
-
-      // Fetch new matches
-      let matches = [];
-      try {
-        if (ODDS_API_KEY) {
-          matches = await fetchFromOddsApi(day);
-        } else if (API_FOOTBALL_KEY) {
-          matches = await fetchFromApiFootball(day);
-        } else {
-          matches = generateMockMatches(day);
-        }
-      } catch (err) {
-        console.error(`API fetch failed for ${day}:`, err);
-        matches = generateMockMatches(day);
-      }
-
-      // Insert matches into database
-      const { error } = await supabase.from("matches").insert(matches);
-      if (error) {
-        console.error(`Insert error for ${day}:`, error);
+    // Fetch ALL World Cup matches from Odds API
+    let allMatches = [];
+    try {
+      if (ODDS_API_KEY) {
+        console.log("Fetching World Cup 2026 matches from Odds API...");
+        allMatches = await fetchAllWorldCupMatches();
+        console.log(`Fetched ${allMatches.length} matches from Odds API`);
+      } else if (API_FOOTBALL_KEY) {
+        console.log("Fetching from API-Football...");
+        allMatches = await fetchFromApiFootballWorldCup();
+        console.log(`Fetched ${allMatches.length} matches from API-Football`);
       } else {
-        console.log(`Inserted ${matches.length} matches for ${day}`);
+        throw new Error("No API keys configured");
       }
+    } catch (err) {
+      console.error("API fetch failed:", err);
+      return new Response(JSON.stringify({ 
+        error: "API fetch failed", 
+        message: err.message,
+        note: "Check API keys and API status"
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
-    // Lock today's matches
-    const todayKey = days[0];
-    await supabase
-      .from("matches")
-      .update({ status: "locked" })
-      .eq("day", todayKey)
-      .eq("status", "open");
+    if (allMatches.length === 0) {
+      return new Response(JSON.stringify({ 
+        error: "No matches found",
+        note: "API returned 0 matches - check if World Cup data is available"
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
-    return new Response(JSON.stringify({ success: true, refreshed: days }), {
+    // Clear existing matches and insert fresh data
+    await supabase.from("matches").delete().neq("id", "");
+    
+    // Insert all matches
+    const { error } = await supabase.from("matches").insert(allMatches);
+    if (error) {
+      console.error("Database insert error:", error);
+      return new Response(JSON.stringify({ 
+        error: "Database insert failed", 
+        message: error.message 
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    // Update cache metadata
+    await supabase.from("cache_metadata").update({
+      last_refresh_ymd: new Date().toISOString().split("T")[0],
+      last_refreshed_at: new Date().toISOString(),
+      source: ODDS_API_KEY ? "odds_api" : "api_football",
+      note: `Loaded ${allMatches.length} World Cup 2026 matches`
+    }).eq("id", 1);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      matchCount: allMatches.length,
+      source: ODDS_API_KEY ? "Odds API" : "API-Football"
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
@@ -113,49 +122,76 @@ serve(async (req) => {
   }
 });
 
-async function fetchFromOddsApi(dayYmd: string): Promise<any[]> {
+async function fetchAllWorldCupMatches(): Promise<any[]> {
   const url = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${encodeURIComponent(
     ODDS_API_KEY
-  )}&regions=eu&markets=h2h`;
-
+  )}&regions=us,eu&markets=h2h`;
+  
   const response = await fetch(url);
-  if (!response.ok) throw new Error("Odds API failed");
+  if (!response.ok) {
+    throw new Error(`Odds API failed with status ${response.status}`);
+  }
+  
   const data = await response.json();
+  console.log(`Odds API returned ${data.length} matches`);
 
-  return data.slice(0, 6).map((item: any, idx: number) => ({
-    id: `m_${dayYmd}_${idx}_${slug(item.home_team)}_${slug(item.away_team)}`,
-    day: dayYmd,
-    kickoff_time: `${String(12 + (idx % 8)).padStart(2, "0")}:00`,
-    home_team: item.home_team,
-    away_team: item.away_team,
-    odds_home: item.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((x: any) => x.name === item.home_team)?.price || 1.5,
-    odds_away: item.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((x: any) => x.name === item.away_team)?.price || 1.5,
-    status: "open",
-    result_home: null,
-    result_away: null,
-    winner: null
-  }));
+  return data.map((item: any) => {
+    const commenceDate = new Date(item.commence_time);
+    const dayYmd = commenceDate.toISOString().split("T")[0];
+    const hours = commenceDate.getUTCHours();
+    const minutes = commenceDate.getUTCMinutes();
+    const kickoffTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    
+    // Get best odds from first bookmaker
+    const bookmaker = item.bookmakers?.[0];
+    const h2hMarket = bookmaker?.markets?.find((m: any) => m.key === "h2h");
+    const homeOutcome = h2hMarket?.outcomes?.find((o: any) => o.name === item.home_team);
+    const awayOutcome = h2hMarket?.outcomes?.find((o: any) => o.name === item.away_team);
+    
+    return {
+      id: `wc2026_${item.id}`,
+      day: dayYmd,
+      kickoff_time: kickoffTime,
+      home_team: item.home_team,
+      away_team: item.away_team,
+      odds_home: homeOutcome?.price || 2.0,
+      odds_away: awayOutcome?.price || 2.0,
+      status: "open",
+      result_home: null,
+      result_away: null,
+      winner: null
+    };
+  });
 }
 
-async function fetchFromApiFootball(dayYmd: string): Promise<any[]> {
-  const url = `https://v3.football.api-sports.io/fixtures?date=${encodeURIComponent(dayYmd)}`;
+async function fetchFromApiFootballWorldCup(): Promise<any[]> {
+  // API-Football World Cup 2026 league ID is 1 (FIFA World Cup)
+  // Fetch all fixtures for the tournament
+  const url = "https://v3.football.api-sports.io/fixtures?league=1&season=2026";
   const response = await fetch(url, {
     headers: { "x-apisports-key": API_FOOTBALL_KEY }
   });
   if (!response.ok) throw new Error("API Football failed");
   const data = await response.json();
 
-  return (data.response || []).slice(0, 6).map((item: any, idx: number) => {
-    const home = item.teams?.home?.name || TEAM_POOL[(idx * 2) % TEAM_POOL.length];
-    const away = item.teams?.away?.name || TEAM_POOL[(idx * 2 + 1) % TEAM_POOL.length];
+  return (data.response || []).map((item: any, idx: number) => {
+    const fixtureDate = new Date(item.fixture?.date || new Date());
+    const dayYmd = fixtureDate.toISOString().split("T")[0];
+    const hours = fixtureDate.getUTCHours();
+    const minutes = fixtureDate.getUTCMinutes();
+    const kickoffTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    
+    const home = item.teams?.home?.name || "TBD";
+    const away = item.teams?.away?.name || "TBD";
+    
     return {
-      id: `m_${dayYmd}_${idx}_${slug(home)}_${slug(away)}`,
+      id: `wc2026_af_${item.fixture?.id || idx}`,
       day: dayYmd,
-      kickoff_time: `${String(12 + (idx % 8)).padStart(2, "0")}:00`,
+      kickoff_time: kickoffTime,
       home_team: home,
       away_team: away,
-      odds_home: 1.5,
-      odds_away: 1.5,
+      odds_home: 2.0,
+      odds_away: 2.0,
       status: "open",
       result_home: null,
       result_away: null,

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Edge Function</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Test Edge Function - World Cup 2026 Data</h1>
+  <button id="testBtn">Fetch Matches from API</button>
+  <button id="checkDbBtn">Check Database</button>
+  <pre id="output" style="border:1px solid #ccc; padding:10px; max-height:400px; overflow-y:auto;"></pre>
+
+  <script>
+    const SUPABASE_URL = "https://pztzduvkbnrutgotdown.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6dHpkdXZrYm5ydXRnb3Rkb3duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MzI3NDcsImV4cCI6MjA2MTUwODc0N30.8RznM5XP0FyQ7EJm-IbV-Vf7tZfK6eNx-oF8nPRQOHE";
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const output = document.getElementById("output");
+
+    document.getElementById("testBtn").addEventListener("click", async () => {
+      output.textContent = "Calling Edge Function...\n";
+      
+      try {
+        const { data, error } = await supabase.functions.invoke("daily-refresh", {
+          headers: {
+            "x-refresh-token": "secret123"
+          }
+        });
+
+        if (error) {
+          output.textContent += `ERROR: ${JSON.stringify(error, null, 2)}\n`;
+        } else {
+          output.textContent += `SUCCESS!\n${JSON.stringify(data, null, 2)}\n`;
+        }
+      } catch (err) {
+        output.textContent += `EXCEPTION: ${err.message}\n`;
+      }
+    });
+
+    document.getElementById("checkDbBtn").addEventListener("click", async () => {
+      output.textContent = "Checking database...\n";
+      
+      try {
+        const { data, error } = await supabase
+          .from("matches")
+          .select("*")
+          .order("day", { ascending: true })
+          .limit(10);
+
+        if (error) {
+          output.textContent += `ERROR: ${JSON.stringify(error, null, 2)}\n`;
+        } else {
+          output.textContent += `Found ${data.length} matches in database (showing first 10):\n\n`;
+          data.forEach(m => {
+            output.textContent += `${m.day} ${m.kickoff_time} - ${m.home_team} vs ${m.away_team} (Odds: ${m.odds_home}, ${m.odds_away})\n`;
+          });
+        }
+      } catch (err) {
+        output.textContent += `EXCEPTION: ${err.message}\n`;
+      }
+    });
+  </script>
+</body>
+</html>
