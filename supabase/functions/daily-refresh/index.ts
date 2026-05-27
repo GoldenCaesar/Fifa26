@@ -31,19 +31,35 @@ const WC_2026_GROUPS = {
   "L": ["Chile", "Ghana", "Serbia", "Honduras"]
 };
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-refresh-token",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+};
+
 serve(async (req) => {
-  // Verify custom refresh token (using custom header to bypass Supabase JWT validation)
-  const token = req.headers.get("x-refresh-token");
+  console.log("=== Edge Function Called ===");
+  console.log("Method:", req.method);
+  console.log("URL:", req.url);
   
-  if (token !== REFRESH_TOKEN) {
-    return new Response(JSON.stringify({ error: "Unauthorized", received: token ? "token provided" : "no token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" }
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    console.log("Handling OPTIONS request");
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
     });
   }
 
+  console.log("Processing POST request...");
+  console.log("Env check - ODDS_API_KEY:", ODDS_API_KEY ? "SET" : "NOT SET");
+  console.log("Env check - SUPABASE_URL:", SUPABASE_URL ? "SET" : "NOT SET");
+  console.log("Env check - SUPABASE_SERVICE_KEY:", SUPABASE_SERVICE_KEY ? "SET" : "NOT SET");
+
   try {
+    console.log("Creating Supabase client...");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    console.log("Supabase client created successfully");
     
     // Fetch ALL World Cup matches from Odds API
     let allMatches = [];
@@ -57,6 +73,7 @@ serve(async (req) => {
         allMatches = await fetchFromApiFootballWorldCup();
         console.log(`Fetched ${allMatches.length} matches from API-Football`);
       } else {
+        console.error("ERROR: No API keys configured!");
         throw new Error("No API keys configured");
       }
     } catch (err) {
@@ -67,7 +84,7 @@ serve(async (req) => {
         note: "Check API keys and API status"
       }), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -77,7 +94,7 @@ serve(async (req) => {
         note: "API returned 0 matches - check if World Cup data is available"
       }), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -93,7 +110,7 @@ serve(async (req) => {
         message: error.message 
       }), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -111,13 +128,13 @@ serve(async (req) => {
       source: ODDS_API_KEY ? "Odds API" : "API-Football"
     }), {
       status: 200,
-      headers: { "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (error) {
     console.error("Refresh error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
 });

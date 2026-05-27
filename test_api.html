@@ -15,51 +15,73 @@
     const SUPABASE_URL = "https://pztzduvkbnrutgotdown.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6dHpkdXZrYm5ydXRnb3Rkb3duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5MzI3NDcsImV4cCI6MjA2MTUwODc0N30.8RznM5XP0FyQ7EJm-IbV-Vf7tZfK6eNx-oF8nPRQOHE";
     
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Initializing Supabase client...");
+    const { createClient } = window.supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const output = document.getElementById("output");
+    console.log("Test page ready!");
 
     document.getElementById("testBtn").addEventListener("click", async () => {
+      console.log("Fetch button clicked!");
       output.textContent = "Calling Edge Function...\n";
       
       try {
-        const { data, error } = await supabase.functions.invoke("daily-refresh", {
+        console.log("Making direct fetch request to Edge Function...");
+        const response = await fetch("https://pztzduvkbnrutgotdown.supabase.co/functions/v1/daily-refresh", {
+          method: "POST",
           headers: {
-            "x-refresh-token": "secret123"
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "apikey": SUPABASE_ANON_KEY,
+            "Content-Type": "application/json"
           }
         });
 
-        if (error) {
-          output.textContent += `ERROR: ${JSON.stringify(error, null, 2)}\n`;
+        console.log("Response status:", response.status);
+        console.log("Response headers:", [...response.headers.entries()]);
+        
+        const data = await response.json();
+        console.log("Response data:", data);
+
+        if (!response.ok) {
+          output.textContent += `ERROR (${response.status}):\n${JSON.stringify(data, null, 2)}\n`;
         } else {
           output.textContent += `SUCCESS!\n${JSON.stringify(data, null, 2)}\n`;
         }
       } catch (err) {
-        output.textContent += `EXCEPTION: ${err.message}\n`;
+        console.error("Exception calling Edge Function:", err);
+        output.textContent += `EXCEPTION: ${err.message}\n${err.stack}\n`;
       }
     });
 
     document.getElementById("checkDbBtn").addEventListener("click", async () => {
+      console.log("Check DB button clicked!");
       output.textContent = "Checking database...\n";
       
       try {
-        const { data, error } = await supabase
+        console.log("Querying matches table...");
+        const { data, error } = await supabaseClient
           .from("matches")
           .select("*")
           .order("day", { ascending: true })
           .limit(10);
 
         if (error) {
+          console.error("Database query error:", error);
           output.textContent += `ERROR: ${JSON.stringify(error, null, 2)}\n`;
         } else {
+          console.log(`Found ${data.length} matches:`, data);
           output.textContent += `Found ${data.length} matches in database (showing first 10):\n\n`;
           data.forEach(m => {
             output.textContent += `${m.day} ${m.kickoff_time} - ${m.home_team} vs ${m.away_team} (Odds: ${m.odds_home}, ${m.odds_away})\n`;
           });
         }
       } catch (err) {
-        output.textContent += `EXCEPTION: ${err.message}\n`;
+        console.error("Exception querying database:", err);
+        output.textContent += `EXCEPTION: ${err.message}\n${err.stack}\n`;
       }
     });
+    
+    console.log("Event listeners attached!");
   </script>
 </body>
 </html>

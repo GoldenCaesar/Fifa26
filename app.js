@@ -291,6 +291,61 @@ function wireSettings() {
     btn.innerHTML = 'Force Daily Refresh <i class="material-symbols-outlined">autorenew</i>';
     status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
   });
+
+  // Home page test button handler
+  const testBtn = document.getElementById("test-edge-function-btn");
+  if (testBtn) {
+    testBtn.addEventListener("click", async () => {
+      const output = document.getElementById("test-output");
+      output.style.display = "block";
+      output.textContent = "🔄 Calling Edge Function...\n\n";
+      
+      testBtn.disabled = true;
+      testBtn.innerHTML = '<i class="material-symbols-outlined">hourglass_empty</i> Testing...';
+      
+      try {
+        console.log("=== TEST: Calling Edge Function ===");
+        console.log("Supabase client:", state.supabase ? "Connected" : "Not connected");
+        
+        if (!state.supabase) {
+          output.textContent += "❌ ERROR: Supabase not connected!\n";
+          testBtn.disabled = false;
+          testBtn.innerHTML = '<i class="material-symbols-outlined">cloud_download</i> Test Fetch from Odds API';
+          return;
+        }
+        
+        const startTime = Date.now();
+        const { data, error } = await state.supabase.functions.invoke("daily-refresh");
+        const elapsed = Date.now() - startTime;
+        
+        console.log("Edge Function response:", { data, error, elapsed });
+        
+        if (error) {
+          output.textContent += `❌ ERROR:\n${JSON.stringify(error, null, 2)}\n`;
+          console.error("Edge Function error:", error);
+        } else {
+          output.textContent += `✅ SUCCESS! (${elapsed}ms)\n\n`;
+          output.textContent += `📊 Result:\n${JSON.stringify(data, null, 2)}\n\n`;
+          
+          if (data.success) {
+            output.textContent += `✅ Loaded ${data.matchCount} matches from ${data.source}\n`;
+            output.textContent += `\n🔄 Reloading matches from database...\n`;
+            
+            await loadWorldCupMatchesFromDatabase();
+            renderApp();
+            
+            output.textContent += `✅ App updated with ${state.data.matches.length} matches!\n`;
+          }
+        }
+      } catch (err) {
+        output.textContent += `❌ EXCEPTION:\n${err.message}\n${err.stack}\n`;
+        console.error("Test failed:", err);
+      } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<i class="material-symbols-outlined">cloud_download</i> Test Fetch from Odds API';
+      }
+    });
+  }
 }
 
 function hydrateSettingsForm() {
