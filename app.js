@@ -95,15 +95,18 @@ if (!state.data) {
 if (!state.data.matches || state.data.matches.length === 0) {
   console.log("No matches found, generating World Cup 2026 schedule");
   state.data.matches = generateWorldCup2026Schedule();
+  console.log(`Generated ${state.data.matches.length} matches`);
   persistState();
 } else {
   // Check if knockout matches exist, if not, regenerate all matches
   const hasKnockoutMatches = state.data.matches.some(m => 
     m.round && !m.round.includes("Group")
   );
+  console.log(`Existing matches: ${state.data.matches.length}, Has knockout matches: ${hasKnockoutMatches}`);
   if (!hasKnockoutMatches) {
     console.log("No knockout matches found in existing data, regenerating schedule");
     state.data.matches = generateWorldCup2026Schedule();
+    console.log(`Regenerated ${state.data.matches.length} matches`);
     persistState();
   }
 }
@@ -351,6 +354,7 @@ function switchView(target) {
   if (target === "home") {
     renderHomeGraph(false);
     renderBracket();
+    renderUpcomingMatches();
   } else if (target === "rankings") {
     renderRankings();
   } else if (target === "standings") {
@@ -659,7 +663,9 @@ function enterApp() {
   }
   
   switchView("home");
-  runDailyRefresh(false).then(renderApp);
+  // Don't run daily refresh on app enter - it overwrites the World Cup schedule
+  // runDailyRefresh(false).then(renderApp);
+  renderApp();
   connectSupabase();
 }
 
@@ -806,7 +812,9 @@ async function runDailyRefresh(force) {
   const todayKey = toYmd(now, state.config.timezone);
   if (!force && state.data.cache.lastRefreshYmd === todayKey) return;
 
-  await refreshScheduleWindow(now);
+  // Don't use refreshScheduleWindow - it overwrites the World Cup 2026 schedule
+  // Instead, just settle bets and update scores
+  // await refreshScheduleWindow(now);
   lockTodaysMatches(todayKey);
   settleYesterdayBets(todayKey);
   recomputeLeaderboard();
@@ -928,6 +936,7 @@ function renderApp() {
   if (!state.data.currentUser) return;
   renderHomeGraph(false);
   renderBracket();
+  renderUpcomingMatches();
   renderRankings();
   renderMatches();
   renderCommunity();
@@ -1192,6 +1201,43 @@ function renderBracket() {
   }
   
   wrap.appendChild(bracketContainer);
+}
+
+function renderUpcomingMatches() {
+  const host = document.getElementById("home-upcoming-matches");
+  if (!host) return;
+  
+  host.innerHTML = "";
+  
+  const now = new Date();
+  const todayYmd = toYmd(now, state.config.timezone);
+  
+  // Get upcoming matches (today or future, scheduled or open)
+  const upcomingMatches = state.data.matches
+    .filter(m => m.day >= todayYmd && (m.status === "scheduled" || m.status === "open"))
+    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
+    .slice(0, 5); // Show next 5 matches
+  
+  if (upcomingMatches.length === 0) {
+    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming matches scheduled.</div>';
+    return;
+  }
+  
+  upcomingMatches.forEach(match => {
+    const card = document.createElement("div");
+    card.className = "match-card-mini";
+    card.innerHTML = `
+      <div class="match-teams">${match.home} <span style="color:var(--muted)">vs</span> ${match.away}</div>
+      <div class="match-details">
+        <span>${match.day}</span>
+        <span style="color:var(--muted)">&bull;</span>
+        <span>${match.time}</span>
+        <span style="color:var(--muted)">&bull;</span>
+        <span>${match.round || match.group || "Match"}</span>
+      </div>
+    `;
+    host.appendChild(card);
+  });
 }
 
 function createRoundColumn(title, matches, roundClass) {

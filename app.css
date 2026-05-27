@@ -897,6 +897,36 @@ select {
   margin-bottom: 10px;
 }
 
+.match-card-mini {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.match-card-mini:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 0, 255, 0.3);
+}
+
+.match-teams {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.match-details {
+  display: flex;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  align-items: center;
+}
+
 .teams-line {
   font-family: "Oswald", sans-serif;
   font-size: 1.2rem;
@@ -1159,6 +1189,16 @@ select {
   }
   
   .bracket-round-title {
+    font-size: 0.75rem;
+  }
+  
+  .match-card-mini {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .match-details {
     font-size: 0.75rem;
   }
 }
