@@ -500,31 +500,39 @@ async function syncUserToSupabase(user) {
   }
   
   try {
-    // Check if user already exists
-    const { data: existing } = await state.supabase
+    // Check if user already exists (case-insensitive)
+    const { data: existing, error: checkError } = await state.supabase
       .from('users')
       .select('handle')
-      .eq('handle', user.handle)
+      .ilike('handle', user.handle)
       .maybeSingle();
     
+    if (checkError) {
+      console.warn('Error checking if user exists:', checkError);
+      return;
+    }
+    
     const userData = {
-      balance: user.balance,
-      total_score: user.totalScore,
-      picks_locked: user.picksLocked || false,
+      balance: user.balance || 2450,
+      total_score: user.totalScore || 0,
+      picks_locked: user.picksLocked === true,
       rankings: user.rankings || []
     };
+    
+    console.log(`Syncing user ${user.handle} to Supabase:`, userData);
     
     if (existing) {
       // Update existing user
       const { error } = await state.supabase
         .from('users')
         .update(userData)
-        .eq('handle', user.handle);
+        .ilike('handle', user.handle);
       
       if (error) {
-        console.warn('Supabase user update failed:', error);
+        console.error('Supabase user update failed:', error);
+        console.error('Attempted to update with:', userData);
       } else {
-        console.log(`Updated user ${user.handle} in Supabase (picks: ${user.rankings?.length || 0})`);
+        console.log(`✓ Updated user ${user.handle} in Supabase (picks: ${user.rankings?.length || 0}, locked: ${userData.picks_locked})`);
       }
     } else {
       // Insert new user
@@ -536,7 +544,8 @@ async function syncUserToSupabase(user) {
         });
       
       if (error) {
-        console.warn('Supabase user insert failed:', error);
+        console.error('Supabase user insert failed:', error);
+        console.error('Attempted to insert:', { handle: user.handle, ...userData });
       } else {
         console.log(`Inserted user ${user.handle} into Supabase`);
       }
