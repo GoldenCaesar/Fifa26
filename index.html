@@ -146,6 +146,14 @@
 
       <main id="main-view" class="main-view">
         <section id="view-home" class="view active" data-view="home">
+          <article class="panel">
+            <div class="panel-head">
+              <h3>Upcoming Matches</h3>
+              <p class="eyebrow">Next 5 Matches</p>
+            </div>
+            <div id="home-upcoming-matches" class="match-list"></div>
+          </article>
+
           <article class="panel graph-panel">
             <div class="panel-head">
               <div>
@@ -158,19 +166,20 @@
             <div id="leader-event" class="leader-event"></div>
           </article>
 
+          <article class="panel">
+            <div class="panel-head">
+              <h3>Group Standings</h3>
+              <p class="eyebrow">World Cup 2026 Groups</p>
+            </div>
+            <div id="home-group-list" class="group-list"></div>
+          </article>
+
           <article class="panel bracket-panel">
             <div class="panel-head">
               <h3>Tournament Bracket</h3>
+              <p class="eyebrow">Knockout Stage</p>
             </div>
             <div id="bracket-wrap" class="bracket-wrap"></div>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Upcoming Matches</h3>
-              <p class="eyebrow">Next 5 Matches</p>
-            </div>
-            <div id="home-upcoming-matches" class="match-list"></div>
           </article>
         </section>
 
@@ -182,28 +191,24 @@
           </article>
           <div class="panel-head secondary">
             <h3>Your Top 5 Teams</h3>
-            <button id="shuffle-rankings" class="btn btn-ghost">Update Rankings</button>
           </div>
           <div id="team-cards" class="team-cards"></div>
         </section>
 
         <section id="view-standings" class="view" data-view="standings">
-          <div class="segment-tabs">
-            <button class="seg active" data-seg="bets">This Week's Bets</button>
-            <button class="seg" data-seg="groups">Group Standings</button>
-          </div>
-
-          <article id="seg-bets" class="segment active">
+          <article class="panel">
             <div class="panel-head secondary"><h3>Upcoming Matches (Next 7 Days)</h3></div>
             <div id="match-list" class="match-list"></div>
+          </article>
+          
+          <article class="panel">
             <div class="panel-head secondary"><h3>Community Betting Activity</h3></div>
             <div id="community-list" class="history-list"></div>
+          </article>
+          
+          <article class="panel">
             <div class="panel-head secondary"><h3>Your Betting History</h3></div>
             <div id="history-list" class="history-list"></div>
-          </article>
-
-          <article id="seg-groups" class="segment">
-            <div id="group-list" class="group-list"></div>
           </article>
         </section>
 
@@ -256,7 +261,7 @@
       <nav class="bottom-nav">
         <button class="nav-item active" data-target="home"><i class="material-symbols-outlined">home</i><span>Home</span></button>
         <button class="nav-item" data-target="rankings"><i class="material-symbols-outlined">grade</i><span>My Rankings</span></button>
-        <button class="nav-item" data-target="standings"><i class="material-symbols-outlined">account_tree</i><span>Standings</span></button>
+        <button class="nav-item" data-target="standings"><i class="material-symbols-outlined">casino</i><span>Bets</span></button>
         <button class="nav-item" data-target="settings"><i class="material-symbols-outlined">settings</i><span>Settings</span></button>
       </nav>
 

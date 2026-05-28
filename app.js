@@ -243,23 +243,8 @@ function wireGlobalButtons() {
     renderApp();
   });
 
-  document.getElementById("shuffle-rankings").addEventListener("click", () => {
-    if (!state.data.currentUser) return;
-    const user = getCurrentUser();
-    user.rankings = shuffle([...user.rankings]);
-    user.rankings.forEach((entry, index) => {
-      entry.rank = index + 1;
-      entry.rankBonus = 6 - (index + 1);
-      entry.goals += Math.floor(Math.random() * 2);
-      entry.wins += Math.floor(Math.random() * 2);
-    });
-    user.totalScore = recalcScore(user);
-    persistState();
-    renderRankings();
-    renderHomeGraph(true);
-    playMetalThud();
-    publishRealtime("rankings:update", { userId: user.id });
-  });
+  // Removed: shuffle-rankings button (demo feature)
+  // Scores are now calculated only from real match results
 }
 
 function wireSettings() {
@@ -416,16 +401,16 @@ function switchView(target) {
   
   // Re-render content when switching views
   if (target === "home") {
-    renderHomeGraph(false);
-    renderBracket();
     renderUpcomingMatches();
+    renderHomeGraph(false);
+    renderHomeGroups();
+    renderBracket();
   } else if (target === "rankings") {
     renderRankings();
   } else if (target === "standings") {
     renderMatches();
     renderCommunity();
     renderHistory();
-    renderGroups();
   } else if (target === "settings" && state.isAdmin) {
     renderAdminPanel();
   }
@@ -680,8 +665,18 @@ function syncUserRankingsWithTeamStats() {
       }
     });
     
-    user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+    // Calculate score from real match results only (no fake balance bonus)
+    user.totalScore = recalcScore(user);
+    
+    // Sync updated scores to database
+    if (state.supabase && user.handle !== 'admin') {
+      syncUserToSupabase(user).catch(err => {
+        console.warn(`Failed to sync ${user.handle} scores to Supabase:`, err);
+      });
+    }
   });
+  
+  console.log('User scores updated from real match results');
 }
 
 
@@ -914,7 +909,8 @@ function lockUserPicks() {
   }));
   user.picksLocked = true;
   user.pendingPicks = [];
-  user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+  // Score starts at 0 - only real match results add points
+  user.totalScore = 0;
   
   // Record initial score for this user
   const todayKey = toYmd(new Date(), state.config.timezone);
@@ -953,6 +949,9 @@ async function runDailyRefresh(force) {
     console.log("Using cached match data from database (already up to date)");
     await loadWorldCupMatchesFromDatabase();
   }
+  
+  // Update user scores from real match results
+  syncUserRankingsWithTeamStats();
   
   lockTodaysMatches(todayKey);
   settleYesterdayBets(todayKey);
@@ -1150,14 +1149,14 @@ function recordDailyScores(dayYmd) {
 function renderApp() {
   console.log("renderApp called, currentUser:", state.data?.currentUser);
   if (!state.data.currentUser) return;
-  renderHomeGraph(false);
-  renderBracket();
   renderUpcomingMatches();
+  renderHomeGraph(false);
+  renderHomeGroups();
+  renderBracket();
   renderRankings();
   renderMatches();
   renderCommunity();
   renderHistory();
-  renderGroups();
 }
 
 function renderHomeGraph(withBurst) {
@@ -1362,9 +1361,55 @@ function renderBracket() {
   
   console.log(`Knockout matches: ${knockoutMatches.length}`);
   
+  // If no knockout matches yet, create TBD placeholder structure
   if (knockoutMatches.length === 0) {
-    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Knockout stage matches will appear here once available.</div>';
-    return;
+    knockoutMatches.push(
+      // Round of 16 (16 matches)
+      ...Array.from({ length: 16 }, (_, i) => ({
+        id: `r16-tbd-${i}`,
+        round: "Round of 16",
+        home: "TBD",
+        away: "TBD",
+        status: "scheduled",
+        day: "2026-06-29"
+      })),
+      // Quarterfinals (8 matches)
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: `qf-tbd-${i}`,
+        round: "Quarterfinals",
+        home: "TBD",
+        away: "TBD",
+        status: "scheduled",
+        day: "2026-07-05"
+      })),
+      // Semifinals (4 matches)
+      ...Array.from({ length: 4 }, (_, i) => ({
+        id: `sf-tbd-${i}`,
+        round: "Semifinals",
+        home: "TBD",
+        away: "TBD",
+        status: "scheduled",
+        day: "2026-07-09"
+      })),
+      // Third Place (1 match)
+      {
+        id: "bronze-tbd",
+        round: "Third Place",
+        home: "TBD",
+        away: "TBD",
+        status: "scheduled",
+        day: "2026-07-13"
+      },
+      // Final (1 match)
+      {
+        id: "final-tbd",
+        round: "Final",
+        home: "TBD",
+        away: "TBD",
+        status: "scheduled",
+        day: "2026-07-14"
+      }
+    );
   }
   
   // Add explanation for TBD teams
@@ -1881,6 +1926,57 @@ function renderGroups() {
   });
 }
 
+function renderHomeGroups() {
+  const host = document.getElementById("home-group-list");
+  if (!host) return;
+  
+  host.innerHTML = "";
+
+  // Calculate real standings from match results
+  const groupStandings = calculateGroupStandings();
+
+  Object.entries(WC_2026_GROUPS).forEach(([groupLetter, teams]) => {
+    const card = document.createElement("article");
+    card.className = "group-card";
+    
+    // Get standings for this group
+    const standings = groupStandings[groupLetter] || {};
+    
+    // Sort teams by points (wins=3, draws=1, loss=0)
+    const sortedTeams = teams
+      .map(team => {
+        const stats = standings[team] || { points: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
+        return { team, ...stats };
+      })
+      .sort((a, b) => {
+        // Sort by points, then goal difference, then goals scored
+        if (b.points !== a.points) return b.points - a.points;
+        const gdA = a.goalsFor - a.goalsAgainst;
+        const gdB = b.goalsFor - b.goalsAgainst;
+        if (gdB !== gdA) return gdB - gdA;
+        return b.goalsFor - a.goalsFor;
+      });
+
+    const rows = sortedTeams
+      .map((item) => {
+        const gd = item.goalsFor - item.goalsAgainst;
+        const gdStr = gd > 0 ? `+${gd}` : gd;
+        return `<li>
+          <span style="flex:1">${item.team}</span>
+          <strong style="min-width:30px;text-align:center">${item.points} pts</strong>
+          <span style="min-width:60px;text-align:center;color:var(--muted);font-size:0.9em">${item.wins}-${item.draws}-${item.losses}</span>
+        </li>`;
+      })
+      .join("");
+
+    card.innerHTML = `
+      <h4>Group ${groupLetter}</h4>
+      <ul style="display:flex;flex-direction:column;gap:8px">${rows}</ul>
+    `;
+    host.appendChild(card);
+  });
+}
+
 function calculateGroupStandings() {
   const standings = {};
   
@@ -1950,7 +2046,10 @@ function connectSupabase() {
     state.supabase = window.supabase.createClient(state.config.supabaseUrl, state.config.supabaseAnon);
     return testSupabaseConnection().then(() => {
       // After connecting, load World Cup matches from database
-      loadWorldCupMatchesFromDatabase();
+      loadWorldCupMatchesFromDatabase().then(() => {
+        // Update user scores from completed matches
+        syncUserRankingsWithTeamStats();
+      });
     });
   } catch {
     setSupabaseIndicator(false, "Supabase: Connection failed");
@@ -1985,6 +2084,8 @@ async function callEdgeFunctionRefresh() {
     if (data.success) {
       alert(`Success! Loaded ${data.matchCount} matches from ${data.source}. Reloading app...`);
       await loadWorldCupMatchesFromDatabase();
+      // Update user scores from match results
+      syncUserRankingsWithTeamStats();
       renderApp();
     } else {
       alert(`Error: ${data.error || 'Unknown error'}\n${data.note || ''}`);
