@@ -535,19 +535,21 @@ async function syncUserToSupabase(user) {
         console.log(`✓ Updated user ${user.handle} in Supabase (picks: ${user.rankings?.length || 0}, locked: ${userData.picks_locked})`);
       }
     } else {
-      // Insert new user
+      // Insert new user (use upsert to handle race conditions)
       const { error } = await state.supabase
         .from('users')
-        .insert({
+        .upsert({
           handle: user.handle,
           ...userData
+        }, {
+          onConflict: 'handle'
         });
       
       if (error) {
-        console.error('Supabase user insert failed:', error);
-        console.error('Attempted to insert:', { handle: user.handle, ...userData });
+        console.error('Supabase user upsert failed:', error);
+        console.error('Attempted to upsert:', { handle: user.handle, ...userData });
       } else {
-        console.log(`Inserted user ${user.handle} into Supabase`);
+        console.log(`✓ Saved user ${user.handle} to Supabase (picks: ${user.rankings?.length || 0}, locked: ${userData.picks_locked})`);
       }
     }
   } catch (err) {
