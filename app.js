@@ -1495,7 +1495,7 @@ function renderUpcomingMatches() {
     const card = document.createElement("div");
     card.className = "match-card-mini";
     card.style.cursor = "pointer";
-    card.title = "Click to view betting options";
+    card.title = "Click to search live score on Google";
     
     // Format date nicely - parse as local date, not UTC
     const [year, month, day] = match.day.split("-");
@@ -1515,9 +1515,17 @@ function renderUpcomingMatches() {
       </div>
     `;
     
-    // Navigate to standings tab when clicked
+    // Open Google search for live score when clicked
     card.addEventListener("click", () => {
-      switchView("standings");
+      // Format date for search query (e.g., "june 11 2026")
+      const searchDate = matchDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      
+      // Build search query: "team1 vs team2 date live score"
+      const searchQuery = `${match.home} vs ${match.away} ${searchDate} live score`;
+      const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+      
+      // Open in new tab
+      window.open(googleUrl, '_blank');
     });
     
     host.appendChild(card);
