@@ -325,18 +325,34 @@ async function loginByHandle(handle) {
       
       if (!error && dbUsers && dbUsers.length > 0) {
         const dbUser = dbUsers[0];
-        console.log(`Found existing user ${handle} in database`);
+        console.log(`Found existing user ${handle} in database:`, dbUser);
         
         // Load user from database into local state
         user = createNewUser(dbUser.handle);
         user.balance = dbUser.balance || 2450;
         user.totalScore = dbUser.total_score || 0;
-        user.picksLocked = dbUser.picks_locked || false;
-        user.rankings = dbUser.rankings || [];
+        
+        // Preserve rankings from database (handle null/undefined)
+        if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
+          user.rankings = dbUser.rankings;
+        } else {
+          user.rankings = [];
+        }
+        
+        // Smart detection: if user has points OR non-default balance OR has rankings, they must have picked teams
+        const hasPlayedBefore = user.totalScore > 0 || user.balance !== 2450 || user.rankings.length > 0;
+        user.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
+        
+        // Update database if we auto-locked based on activity
+        if (!dbUser.picks_locked && hasPlayedBefore) {
+          console.log(`Auto-locking picks for ${handle} (has activity: score=${user.totalScore}, balance=${user.balance}, rankings=${user.rankings.length})`);
+          syncUserToSupabase(user).catch(err => console.warn("Failed to update picks_locked:", err));
+        }
+        
         users.push(user);
         persistState();
         
-        console.log(`Loaded user ${handle} from database (picks: ${user.rankings.length}, locked: ${user.picksLocked})`);
+        console.log(`Loaded user ${handle} from database - picks_locked: ${user.picksLocked}, rankings count: ${user.rankings.length}`);
       }
     } catch (err) {
       console.warn("Failed to check database for user:", err);
@@ -377,10 +393,13 @@ async function loginByHandle(handle) {
   setTimeout(() => {
     document.getElementById("screen-login").classList.remove("active");
     const user = getCurrentUser();
+    const userNeedsPicks = needsPicks(user);
+    console.log(`User ${user.handle} login check - needsPicks: ${userNeedsPicks}, picksLocked: ${user.picksLocked}, rankings: ${user.rankings.length}`);
+    
     // Admin skips team picking entirely
     if (state.isAdmin) {
       enterApp();
-    } else if (needsPicks(user)) {
+    } else if (userNeedsPicks) {
       initPicksScreen(user);
     } else {
       enterApp();
@@ -563,10 +582,20 @@ async function loadUsersFromSupabase() {
           const newUser = createNewUser(dbUser.handle);
           newUser.balance = dbUser.balance || 2450;
           newUser.totalScore = dbUser.total_score || 0;
-          newUser.picksLocked = dbUser.picks_locked || false;
-          newUser.rankings = dbUser.rankings || [];
+          
+          // Preserve rankings from database
+          if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
+            newUser.rankings = dbUser.rankings;
+          } else {
+            newUser.rankings = [];
+          }
+          
+          // Smart detection: if user has points OR non-default balance OR has rankings, they must have picked teams
+          const hasPlayedBefore = newUser.totalScore > 0 || newUser.balance !== 2450 || newUser.rankings.length > 0;
+          newUser.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
+          
           state.data.users.push(newUser);
-          console.log(`Loaded user ${dbUser.handle} from Supabase (picks: ${newUser.rankings.length}, locked: ${newUser.picksLocked})`);
+          console.log(`Loaded user ${dbUser.handle} from Supabase (picks: ${newUser.rankings.length}, locked: ${newUser.picksLocked}, score: ${newUser.totalScore})`);
         }
       });
       
@@ -642,9 +671,20 @@ function syncUserRankingsWithTeamStats() {
 
 function needsPicks(user) {
   if (!user) return false;
-  if (user.picksLocked === true) return false;
+  
+  // If picks are locked, they definitely don't need to pick
+  if (user.picksLocked === true) {
+    console.log(`User ${user.handle} has picksLocked=true, skipping picks screen`);
+    return false;
+  }
+  
   // Migration: existing users with rankings but no picksLocked flag treated as locked
-  if (user.picksLocked === undefined && user.rankings && user.rankings.length > 0) return false;
+  if (user.picksLocked === undefined && user.rankings && user.rankings.length > 0) {
+    console.log(`User ${user.handle} has rankings (${user.rankings.length}) but no picksLocked flag, treating as locked`);
+    return false;
+  }
+  
+  console.log(`User ${user.handle} needs picks (picksLocked: ${user.picksLocked}, rankings: ${user.rankings.length})`);
   return true;
 }
 
