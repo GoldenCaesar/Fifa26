@@ -314,6 +314,35 @@ async function loginByHandle(handle) {
   const users = state.data.users;
   let user = users.find((entry) => entry.handle.toLowerCase() === handle.toLowerCase());
 
+  // If not found locally, check Supabase database
+  if (!user && state.supabase && handle.toLowerCase() !== "admin") {
+    try {
+      const { data: dbUsers, error } = await state.supabase
+        .from('users')
+        .select('*')
+        .ilike('handle', handle)
+        .limit(1);
+      
+      if (!error && dbUsers && dbUsers.length > 0) {
+        const dbUser = dbUsers[0];
+        console.log(`Found existing user ${handle} in database`);
+        
+        // Load user from database into local state
+        user = createNewUser(dbUser.handle);
+        user.balance = dbUser.balance || 2450;
+        user.totalScore = dbUser.total_score || 0;
+        user.picksLocked = dbUser.picks_locked || false;
+        user.rankings = dbUser.rankings || [];
+        users.push(user);
+        persistState();
+        
+        console.log(`Loaded user ${handle} from database (picks: ${user.rankings.length}, locked: ${user.picksLocked})`);
+      }
+    } catch (err) {
+      console.warn("Failed to check database for user:", err);
+    }
+  }
+
   if (!user) {
     if (handle.toLowerCase() !== "admin") {
       const ok = window.confirm(`No account found for ${handle}. Create it now?`);
