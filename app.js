@@ -407,6 +407,8 @@ function switchView(target) {
     renderBracket();
   } else if (target === "rankings") {
     renderRankings();
+  } else if (target === "players") {
+    renderPlayers();
   } else if (target === "standings") {
     renderMatches();
     renderCommunity();
@@ -753,6 +755,14 @@ function enterApp() {
       
       // Force reload from server (bypass cache)
       window.location.reload(true);
+    };
+  }
+  
+  // Wire up Live Standings button
+  const liveStandingsBtn = document.getElementById("live-standings-btn");
+  if (liveStandingsBtn) {
+    liveStandingsBtn.onclick = () => {
+      window.open('https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/standings', '_blank');
     };
   }
   
@@ -1607,6 +1617,64 @@ function renderRankings() {
   });
 }
 
+function renderPlayers() {
+  const host = document.getElementById("players-list");
+  if (!host) return;
+  
+  host.innerHTML = "";
+
+  // Get all users sorted by totalScore descending
+  const sortedUsers = [...state.data.users].sort((a, b) => b.totalScore - a.totalScore);
+
+  if (sortedUsers.length === 0) {
+    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No players yet.</div>';
+    return;
+  }
+
+  sortedUsers.forEach((player, index) => {
+    const card = document.createElement("article");
+    card.className = "player-card";
+    
+    // Calculate player's team total points
+    const teamPoints = player.rankings.reduce((sum, team) => sum + (team.goals * (team.wins + team.rankBonus)), 0);
+    
+    // Determine rank badge color
+    let rankBadgeClass = "";
+    if (index === 0) rankBadgeClass = "rank-gold";
+    else if (index === 1) rankBadgeClass = "rank-silver";
+    else if (index === 2) rankBadgeClass = "rank-bronze";
+    
+    card.innerHTML = `
+      <div class="player-header">
+        <div class="player-rank-badge ${rankBadgeClass}">#${index + 1}</div>
+        <div class="player-info">
+          <h4>${player.handle}</h4>
+          <div class="player-stats">
+            <span><strong>${player.totalScore.toLocaleString()}</strong> Total Points</span>
+            <span style="color:var(--muted)">&bull;</span>
+            <span>${teamPoints.toLocaleString()} from Teams</span>
+            <span style="color:var(--muted)">&bull;</span>
+            <span>${Math.floor(player.balance).toLocaleString()} Balance</span>
+          </div>
+        </div>
+      </div>
+      <div class="player-teams">
+        <div class="player-teams-header">Team Picks:</div>
+        <div class="player-teams-grid">
+          ${player.rankings.map(team => `
+            <div class="player-team-chip">
+              <span class="team-name">${team.team}</span>
+              <span class="team-score">${team.goals * (team.wins + team.rankBonus)} pts</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    
+    host.appendChild(card);
+  });
+}
+
 function renderMatches() {
   const user = getCurrentUser();
   const host = document.getElementById("match-list");
@@ -1808,6 +1876,39 @@ function placeBet(match, pick, odds, wagerAmount) {
   renderHomeGraph(true);
 }
 
+function deleteBet(betId) {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  const betIndex = state.data.bets.findIndex(b => b.id === betId && b.userId === user.id);
+  if (betIndex === -1) return;
+
+  const bet = state.data.bets[betIndex];
+  
+  // Only allow deleting active bets
+  if (bet.status !== "active") {
+    alert("Only active bets can be cancelled.");
+    return;
+  }
+
+  // Refund the wager to user's balance
+  user.balance += bet.wager;
+
+  // Remove the bet
+  state.data.bets.splice(betIndex, 1);
+
+  // Recalculate score
+  user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+
+  persistState();
+  publishRealtime("bet:cancelled", { userId: user.id, matchId: bet.matchId });
+  renderMatches();
+  renderCommunity();
+  renderHistory();
+  renderRankings();
+  renderHomeGraph(true);
+}
+
 function renderCommunity() {
   const host = document.getElementById("community-list");
   if (!host) return;
@@ -1870,6 +1971,9 @@ function renderHistory() {
     return;
   }
 
+  const now = new Date();
+  const todayYmd = toYmd(now, state.config.timezone);
+
   userBets.forEach((bet) => {
     const match = state.data.matches.find((entry) => entry.id === bet.matchId);
     const row = document.createElement("div");
@@ -1880,7 +1984,25 @@ function renderHistory() {
     if (bet.outcome === "win") result = `+${Math.round(bet.delta)} points`;
     if (bet.outcome === "loss") result = `${Math.round(bet.delta)} points`;
 
-    row.textContent = `Bet ${bet.wager} points on ${bet.pick} in ${versus} -> Result: ${result}`;
+    const textSpan = document.createElement("span");
+    textSpan.textContent = `Bet ${bet.wager} points on ${bet.pick} in ${versus} -> Result: ${result}`;
+    row.appendChild(textSpan);
+    
+    // Add delete button for active bets if match is not today
+    if (bet.status === "active" && match && match.day > todayYmd) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "btn btn-danger";
+      deleteBtn.style.cssText = "padding:4px 12px;font-size:12px;margin-left:10px";
+      deleteBtn.innerHTML = '<i class="material-symbols-outlined" style="font-size:16px">delete</i> Cancel Bet';
+      deleteBtn.title = "Cancel this bet and refund your points";
+      deleteBtn.addEventListener("click", () => {
+        if (confirm(`Cancel bet of ${bet.wager} points on ${bet.pick}? Your points will be refunded.`)) {
+          deleteBet(bet.id);
+        }
+      });
+      row.appendChild(deleteBtn);
+    }
+    
     host.appendChild(row);
   });
 }

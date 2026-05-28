@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#121212">
-  <title>Family Clash 2026</title>
+  <title>Miller Family Clash 2026</title>
+  <link rel="icon" type="image/x-icon" href="demicube_icon.ico">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +20,7 @@
   <div id="app" class="app-shell">
     <section id="screen-login" class="screen screen-login active" aria-label="Login">
       <header class="top-bar muted">
-        <h1>Family Clash 2026</h1>
+        <h1>Miller Family Clash 2026</h1>
       </header>
       <main class="login-main">
         <div class="ambient-glow"></div>
@@ -120,9 +121,13 @@
 
     <section id="screen-app" class="screen screen-app" aria-label="App">
       <header class="top-bar">
-        <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Family Clash 2026</h1></div>
+        <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Miller Family Clash 2026</h1></div>
         <div class="top-bar-right">
           <span id="top-bar-admin-badge" class="admin-badge" style="display:none"><i class="material-symbols-outlined">admin_panel_settings</i> Admin</span>
+          <button id="live-standings-btn" class="btn btn-secondary" title="View FIFA official standings" style="margin-right:10px">
+            <i class="material-symbols-outlined">emoji_events</i>
+            <span>Live Standings</span>
+          </button>
           <div id="user-menu-wrapper" class="user-menu-wrapper" style="position:relative">
             <button id="user-menu-btn" class="user-menu-btn" title="Account menu">
               <i class="material-symbols-outlined">account_circle</i>
@@ -195,6 +200,16 @@
           <div id="team-cards" class="team-cards"></div>
         </section>
 
+        <section id="view-players" class="view" data-view="players">
+          <article class="panel">
+            <div class="panel-head">
+              <h3><i class="material-symbols-outlined">groups</i> All Players</h3>
+              <p class="eyebrow">Compare team picks and scores</p>
+            </div>
+            <div id="players-list" class="players-list"></div>
+          </article>
+        </section>
+
         <section id="view-standings" class="view" data-view="standings">
           <article class="panel">
             <div class="panel-head secondary"><h3>Upcoming Matches (Next 7 Days)</h3></div>
@@ -261,6 +276,7 @@
       <nav class="bottom-nav">
         <button class="nav-item active" data-target="home"><i class="material-symbols-outlined">home</i><span>Home</span></button>
         <button class="nav-item" data-target="rankings"><i class="material-symbols-outlined">grade</i><span>My Rankings</span></button>
+        <button class="nav-item" data-target="players"><i class="material-symbols-outlined">groups</i><span>Players</span></button>
         <button class="nav-item" data-target="standings"><i class="material-symbols-outlined">casino</i><span>Bets</span></button>
         <button class="nav-item" data-target="settings"><i class="material-symbols-outlined">settings</i><span>Settings</span></button>
       </nav>

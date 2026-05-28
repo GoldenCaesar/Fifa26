@@ -339,6 +339,20 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.btn-secondary {
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.15), rgba(255, 0, 255, 0.1));
+  color: var(--secondary);
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.2);
+  font-size: 0.9rem;
+  padding: 0 14px;
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.25), rgba(255, 0, 255, 0.15));
+  box-shadow: 0 0 18px rgba(57, 255, 20, 0.3);
+}
+
 .btn-danger {
   background: var(--danger);
   color: #fff;
@@ -844,6 +858,130 @@ select {
   animation: settle 420ms var(--spring);
 }
 
+/* ── Players List ────────────────────────────────── */
+.players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.player-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.player-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 0, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(255, 0, 255, 0.15);
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.player-rank-badge {
+  min-width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+  font-size: 1.1rem;
+  font-family: "Oswald", sans-serif;
+}
+
+.player-rank-badge.rank-gold {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #1f1f1f;
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.player-rank-badge.rank-silver {
+  background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+  color: #1f1f1f;
+  border-color: #c0c0c0;
+  box-shadow: 0 0 15px rgba(192, 192, 192, 0.3);
+}
+
+.player-rank-badge.rank-bronze {
+  background: linear-gradient(135deg, #cd7f32, #e6a75c);
+  color: #1f1f1f;
+  border-color: #cd7f32;
+  box-shadow: 0 0 15px rgba(205, 127, 50, 0.3);
+}
+
+.player-info {
+  flex: 1;
+}
+
+.player-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.3rem;
+  font-family: "Oswald", sans-serif;
+  color: var(--text);
+}
+
+.player-stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.player-teams {
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player-teams-header {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.player-teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.player-team-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 0, 255, 0.08);
+  border: 1px solid rgba(255, 0, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.player-team-chip .team-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.player-team-chip .team-score {
+  color: var(--secondary);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
 .segment-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -889,6 +1027,14 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 10px;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .bet-head {
@@ -1202,6 +1348,15 @@ select {
   
   .match-details {
     font-size: 0.75rem;
+  }
+  
+  /* Hide button text on small screens */
+  #live-standings-btn span {
+    display: none;
+  }
+  
+  #live-standings-btn {
+    padding: 0 12px;
   }
 }
 
