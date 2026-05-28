@@ -469,8 +469,15 @@ function renderAdminPanel() {
 function deleteUser(userId) {
   const userToDelete = state.data.users.find(u => u.id === userId);
   state.data.users = state.data.users.filter((u) => u.id !== userId);
-  state.data.leaderboard = state.data.leaderboard.filter((row) => row.userId !== userId);
-  state.data.bets = state.data.bets.filter((bet) => bet.userId !== userId);
+  
+  // Safely filter leaderboard and bets if they exist
+  if (state.data.leaderboard) {
+    state.data.leaderboard = state.data.leaderboard.filter((row) => row.userId !== userId);
+  }
+  if (state.data.bets) {
+    state.data.bets = state.data.bets.filter((bet) => bet.userId !== userId);
+  }
+  
   persistState();
   
   // Delete from Supabase if connected
