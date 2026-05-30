@@ -8,22 +8,22 @@
   "description": "Track World Cup progress, rankings, and bets in real time.",
   "icons": [
     {
-      "src": "demicube_icon.ico",
-      "sizes": "16x16 32x32 48x48 64x64 128x128 256x256",
-      "type": "image/x-icon",
+      "src": "assets/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "demicube_icon.ico",
+      "src": "assets/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/x-icon",
-      "purpose": "maskable"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "demicube_icon.ico",
+      "src": "assets/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/x-icon",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

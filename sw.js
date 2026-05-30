@@ -1,5 +1,5 @@
-const APP_CACHE = "miller-clash-shell-v1";
-const DATA_CACHE = "miller-clash-data-v1";
+const APP_CACHE = "miller-clash-shell-v2";
+const DATA_CACHE = "miller-clash-data-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,7 +7,9 @@ const APP_SHELL = [
   "./app.js",
   "./app.config.js",
   "./manifest.webmanifest",
-  "./demicube_icon.ico"
+  "./assets/icons/icon-144x144.png",
+  "./assets/icons/icon-192x192.png",
+  "./assets/icons/icon-512x512.png"
 ];
 
 self.addEventListener("install", (event) => {

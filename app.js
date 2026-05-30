@@ -6,9 +6,9 @@ const STORAGE_KEYS = {
 const BOOTSTRAP_CONFIG = window.FC26_BOOTSTRAP || {};
 
 const DEFAULT_CONFIG = {
-  timezone: BOOTSTRAP_CONFIG.timezone || "UTC",
+  timezone: "America/Los_Angeles", // Hard-coded to PST
   marketVisibility: BOOTSTRAP_CONFIG.marketVisibility || "aggregate",
-  maxActiveBetsPerMatch: BOOTSTRAP_CONFIG.maxActiveBetsPerMatch || 1,
+  maxActiveBetsPerMatch: 1, // Default, will be loaded from database
   supabaseUrl: BOOTSTRAP_CONFIG.supabaseUrl || "",
   supabaseAnon: BOOTSTRAP_CONFIG.supabaseAnon || ""
 };
@@ -248,19 +248,52 @@ function wireGlobalButtons() {
 }
 
 function wireSettings() {
-  const form = document.getElementById("settings-form");
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const payload = new FormData(form);
-    state.config.timezone = payload.get("timezone") || "UTC";
-    state.config.marketVisibility = payload.get("marketVisibility") || "aggregate";
-    state.config.maxActiveBetsPerMatch = Math.max(1, Number(payload.get("maxActiveBetsPerMatch") || 1));
-    state.config.supabaseUrl = payload.get("supabaseUrl") || "";
-    state.config.supabaseAnon = payload.get("supabaseAnon") || "";
-    persistConfig();
-    connectSupabase();
-    setStatus("settings-status", "Settings saved.");
-  });
+  // Admin settings form - only for admin users
+  const adminForm = document.getElementById("admin-settings-form");
+  if (adminForm) {
+    adminForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = new FormData(adminForm);
+      
+      const newMaxBets = Math.max(1, Number(payload.get("maxActiveBetsPerMatch") || 1));
+      const newUrl = payload.get("supabaseUrl") || "";
+      const newAnon = payload.get("supabaseAnon") || "";
+      
+      // Update local config
+      state.config.maxActiveBetsPerMatch = newMaxBets;
+      state.config.supabaseUrl = newUrl;
+      state.config.supabaseAnon = newAnon;
+      persistConfig();
+      
+      // Save maxActiveBetsPerMatch to database so all users get the new limit
+      if (state.supabase) {
+        try {
+          const { error } = await state.supabase
+            .from('app_settings')
+            .upsert({ 
+              id: 1, 
+              max_active_bets_per_match: newMaxBets,
+              updated_at: new Date().toISOString()
+            });
+          
+          if (error) {
+            console.error('Failed to save settings to database:', error);
+            setStatus("admin-settings-status", "Settings saved locally, but failed to sync to database.");
+          } else {
+            setStatus("admin-settings-status", `Settings saved! Max bets per match set to ${newMaxBets} for all users.`);
+          }
+        } catch (err) {
+          console.error('Error saving settings:', err);
+          setStatus("admin-settings-status", "Settings saved locally.");
+        }
+      }
+      
+      // Reconnect Supabase if credentials changed
+      if (newUrl && newAnon) {
+        connectSupabase();
+      }
+    });
+  }
 
   document.getElementById("admin-refresh-btn").addEventListener("click", async () => {
     const btn = document.getElementById("admin-refresh-btn");
@@ -282,12 +315,13 @@ function wireSettings() {
 }
 
 function hydrateSettingsForm() {
-  const form = document.getElementById("settings-form");
-  form.timezone.value = state.config.timezone;
-  form.marketVisibility.value = state.config.marketVisibility;
-  form.maxActiveBetsPerMatch.value = state.config.maxActiveBetsPerMatch;
-  form.supabaseUrl.value = state.config.supabaseUrl;
-  form.supabaseAnon.value = state.config.supabaseAnon;
+  // Hydrate admin settings form
+  const adminForm = document.getElementById("admin-settings-form");
+  if (adminForm) {
+    adminForm.maxActiveBetsPerMatch.value = state.config.maxActiveBetsPerMatch;
+    adminForm.supabaseUrl.value = state.config.supabaseUrl;
+    adminForm.supabaseAnon.value = state.config.supabaseAnon;
+  }
 }
 
 async function loginByHandle(handle) {
@@ -733,6 +767,7 @@ function enterApp() {
   document.getElementById("screen-app").classList.add("active");
   if (state.isAdmin) {
     document.getElementById("admin-panel").style.display = "block";
+    document.getElementById("admin-settings-panel").style.display = "block";
     document.getElementById("top-bar-admin-badge").style.display = "inline-flex";
   }
   
@@ -1065,6 +1100,41 @@ async function shouldFetchFromApi(todayKey) {
   } catch (err) {
     console.error("Error checking cache metadata:", err);
     return false; // Don't fetch on error, use existing data
+  }
+}
+
+async function loadAppSettings() {
+  if (!state.supabase) {
+    console.warn("Supabase not connected - using default app settings");
+    return;
+  }
+
+  try {
+    const { data: settings, error } = await state.supabase
+      .from('app_settings')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      console.warn("Could not load app settings from database:", error.message);
+      return;
+    }
+
+    if (settings && settings.max_active_bets_per_match) {
+      state.config.maxActiveBetsPerMatch = settings.max_active_bets_per_match;
+      persistConfig(); // Save to localStorage
+      
+      // Update admin form if it exists
+      const adminForm = document.getElementById("admin-settings-form");
+      if (adminForm && adminForm.maxActiveBetsPerMatch) {
+        adminForm.maxActiveBetsPerMatch.value = settings.max_active_bets_per_match;
+      }
+      
+      console.log(`Loaded app settings: maxActiveBetsPerMatch = ${settings.max_active_bets_per_match}`);
+    }
+  } catch (err) {
+    console.error("Error loading app settings:", err);
   }
 }
 
@@ -1746,18 +1816,14 @@ function renderMatches() {
   const now = new Date();
   const todayYmd = toYmd(now, state.config.timezone);
   
-  // Calculate 7 days from now
-  const sevenDaysLater = new Date(now);
-  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-  const sevenDaysYmd = toYmd(sevenDaysLater, state.config.timezone);
-  
-  // Filter matches to only show those in the next 7 days
+  // Get next 5 upcoming matches (same as home page)
   const upcomingMatches = state.data.matches
-    .filter(m => m.day >= todayYmd && m.day <= sevenDaysYmd)
-    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+    .filter(m => m.day >= todayYmd && m.status === "open")
+    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
+    .slice(0, 5); // Show next 5 matches
   
   if (upcomingMatches.length === 0) {
-    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No matches in the next 7 days.</div>';
+    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming matches available for betting.</div>';
     return;
   }
 
@@ -2238,7 +2304,10 @@ function connectSupabase() {
 
   try {
     state.supabase = window.supabase.createClient(state.config.supabaseUrl, state.config.supabaseAnon);
-    return testSupabaseConnection().then(() => {
+    return testSupabaseConnection().then(async () => {
+      // Load app settings from database (maxActiveBetsPerMatch)
+      await loadAppSettings();
+      
       // After connecting, load World Cup matches from database
       loadWorldCupMatchesFromDatabase().then(() => {
         // Update user scores from completed matches
@@ -2247,7 +2316,7 @@ function connectSupabase() {
     });
   } catch {
     setSupabaseIndicator(false, "Supabase: Connection failed");
-    setStatus("settings-status", "Supabase connection failed. Check URL/anon key.");
+    setStatus("admin-settings-status", "Supabase connection failed. Check URL/anon key.");
     return Promise.resolve();
   }
 }

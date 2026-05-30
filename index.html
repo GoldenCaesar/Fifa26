@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#121212">
   <title>Miller Family Clash 2026</title>
-  <link rel="icon" type="image/x-icon" href="demicube_icon.ico">
-  <link rel="shortcut icon" type="image/x-icon" href="demicube_icon.ico">
-  <link rel="apple-touch-icon" href="demicube_icon.ico">
+  <link rel="icon" type="image/png" sizes="144x144" href="assets/icons/icon-144x144.png">
+  <link rel="shortcut icon" type="image/png" sizes="192x192" href="assets/icons/icon-192x192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192x192.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -253,31 +253,36 @@
               <div id="admin-refresh-status" class="inline-note" style="margin-top:8px"></div>
             </article>
           </div>
+          
+          <!-- Admin-only settings -->
+          <div id="admin-settings-panel" style="display:none">
+            <article class="panel admin-section">
+              <div class="panel-head">
+                <h3><i class="material-symbols-outlined">tune</i> Admin Settings</h3>
+              </div>
+              <p class="inline-note">These settings are only visible to admins and are synced to the database.</p>
+              <form id="admin-settings-form" class="settings-form">
+                <label>Max Active Bets Per Match (Per User)
+                  <input name="maxActiveBetsPerMatch" type="number" min="1" step="1" value="1">
+                  <small style="color:var(--muted);font-size:0.85rem">Controls how many simultaneous bets each user can place on a single match</small>
+                </label>
+                <label>Supabase URL
+                  <input name="supabaseUrl" type="text" placeholder="https://your-project.supabase.co">
+                </label>
+                <label>Supabase Anon Key
+                  <input name="supabaseAnon" type="text" placeholder="anon public key">
+                </label>
+                <button class="btn btn-primary" type="submit">Save Admin Settings</button>
+              </form>
+              <div id="admin-settings-status" class="inline-note"></div>
+            </article>
+          </div>
+          
+          <!-- User info panel -->
           <article class="panel">
-            <h3>App Settings</h3>
-            <p class="inline-note">App settings stored locally on this device. Odds are fetched server-side via Supabase Edge Function.</p>
-            <form id="settings-form" class="settings-form">
-              <label>Canonical Timezone
-                <input name="timezone" type="text" placeholder="UTC" value="UTC">
-              </label>
-              <label>Market Visibility
-                <select name="marketVisibility">
-                  <option value="aggregate">Aggregate totals only</option>
-                  <option value="exact">Exact wagers and user handles</option>
-                </select>
-              </label>
-              <label>Max Active Bets Per Match (Per User)
-                <input name="maxActiveBetsPerMatch" type="number" min="1" step="1" value="1">
-              </label>
-              <label>Supabase URL
-                <input name="supabaseUrl" type="text" placeholder="https://your-project.supabase.co">
-              </label>
-              <label>Supabase Anon Key
-                <input name="supabaseAnon" type="text" placeholder="anon public key">
-              </label>
-              <button class="btn btn-primary" type="submit">Save Settings</button>
-            </form>
-            <div id="settings-status" class="inline-note"></div>
+            <h3>About</h3>
+            <p class="inline-note">Miller Family Clash 2026 runs on PST timezone. All match times are displayed in PST.</p>
+            <p class="inline-note" style="margin-top:10px">Click the <strong>How to Play</strong> button in the header to learn how scoring and betting works!</p>
           </article>
         </section>
       </main>
@@ -387,7 +392,7 @@
               <li><strong>My Rankings:</strong> View your 5 team picks and their detailed performance stats</li>
               <li><strong>Players:</strong> Compare all players, their teams, and scores</li>
               <li><strong>Bets:</strong> Place bets on upcoming matches and view your bet history</li>
-              <li><strong>Settings:</strong> Adjust preferences (coming soon)</li>
+              <li><strong>Settings:</strong> Admin controls for managing the competition</li>
             </ul>
           </section>
 

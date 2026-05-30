@@ -1303,6 +1303,22 @@ select {
 }
 
 @media (max-width: 500px) {
+  .top-bar h1 {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+  
+  .brand {
+    gap: 6px;
+  }
+  
+  .brand i {
+    font-size: 20px;
+  }
+  
   .countdown-unit {
     min-width: 58px;
     padding: 10px 6px;
