@@ -772,51 +772,85 @@ async function loadUsersFromSupabase() {
 async function syncBetToSupabase(bet) {
   if (!state.supabase) {
     console.warn('Supabase not connected, cannot sync bet');
-    return;
+    return null;
   }
   
   try {
-    const betData = {
-      id: bet.id,
-      user_id: bet.userId,
-      match_id: bet.matchId,
-      pick: bet.pick,
-      odds: bet.odds,
-      wager: bet.wager,
-      status: bet.status,
-      outcome: bet.outcome,
-      delta: bet.delta || 0,
-      created_at: bet.createdAt,
-      settled_at: bet.settledAt || null
-    };
-    
-    const { error } = await state.supabase
-      .from('bets')
-      .upsert(betData, { onConflict: 'id' });
-    
-    if (error) {
-      console.error('Failed to sync bet to Supabase:', error);
+    // If bet already has a database UUID, update it
+    if (bet.dbId) {
+      const betData = {
+        user_id: bet.userId,
+        match_id: bet.matchId,
+        pick: bet.pick,
+        odds: bet.odds,
+        wager: bet.wager,
+        status: bet.status,
+        outcome: bet.outcome,
+        delta: bet.delta || 0,
+        created_at: bet.createdAt,
+        settled_at: bet.settledAt || null
+      };
+      
+      const { error } = await state.supabase
+        .from('bets')
+        .update(betData)
+        .eq('id', bet.dbId);
+      
+      if (error) {
+        console.error('Failed to update bet in Supabase:', error);
+        return null;
+      } else {
+        console.log(`✓ Updated bet ${bet.dbId} in Supabase`);
+        return bet.dbId;
+      }
     } else {
-      console.log(`✓ Synced bet ${bet.id} to Supabase`);
+      // New bet - let database generate UUID
+      const betData = {
+        user_id: bet.userId,
+        match_id: bet.matchId,
+        pick: bet.pick,
+        odds: bet.odds,
+        wager: bet.wager,
+        status: bet.status,
+        outcome: bet.outcome,
+        delta: bet.delta || 0,
+        created_at: bet.createdAt,
+        settled_at: bet.settledAt || null
+      };
+      
+      const { data, error } = await state.supabase
+        .from('bets')
+        .insert(betData)
+        .select('id')
+        .single();
+      
+      if (error) {
+        console.error('Failed to insert bet to Supabase:', error);
+        return null;
+      } else {
+        console.log(`✓ Inserted bet ${data.id} to Supabase`);
+        return data.id;
+      }
     }
   } catch (err) {
     console.warn('Bet sync error:', err);
+    return null;
   }
 }
 
-async function deleteBetFromSupabase(betId) {
-  if (!state.supabase) return;
+async function deleteBetFromSupabase(dbId) {
+  if (!state.supabase || !dbId) return;
   
   try {
     const { error } = await state.supabase
       .from('bets')
       .delete()
-      .eq('id', betId);
+      .eq('id', dbId);
     
     if (error) {
       console.warn('Failed to delete bet from Supabase:', error);
     } else {
-      console.log(`✓ Deleted bet ${betId} from Supabase`);
+      console.log(`✓ Deleted bet ${dbId} from Supabase`);
     }
   } catch (err) {
     console.warn('Bet deletion error:', err);
@@ -849,7 +883,8 @@ async function loadBetsFromSupabase(userId) {
       // Add bets from database
       dbBets.forEach(dbBet => {
         state.data.bets.push({
-          id: dbBet.id,
+          id: `bet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          dbId: dbBet.id, // Store database UUID separately
           userId: dbBet.user_id,
           matchId: dbBet.match_id,
           pick: dbBet.pick,
@@ -2262,7 +2297,14 @@ function placeBet(match, pick, odds, wagerAmount) {
 
   persistState();
   syncUserToSupabase(user); // Sync updated balance
-  syncBetToSupabase(newBet); // Sync bet to database
+  
+  // Sync bet to database and store the returned UUID
+  syncBetToSupabase(newBet).then(dbId => {
+    if (dbId) {
+      newBet.dbId = dbId;
+      persistState();
+    }
+  });
   
   publishRealtime("bet:placed", { userId: user.id, matchId: match.id });
   renderMatches();
@@ -2290,7 +2332,10 @@ function deleteBet(betId) {
   // Refund the wager to user's balance
   user.balance += bet.wager;
 
-  // Remove the bet
+  // Remove the bet from database if it has a dbId
+  const dbId = bet.dbId;
+  
+  // Remove the bet from local state
   state.data.bets.splice(betIndex, 1);
 
   // Total score doesn't change when canceling bet
@@ -2298,7 +2343,9 @@ function deleteBet(betId) {
 
   persistState();
   syncUserToSupabase(user); // Sync updated balance
-  deleteBetFromSupabase(betId); // Remove bet from database
+  if (dbId) {
+    deleteBetFromSupabase(dbId); // Remove bet from database
+  }
   
   publishRealtime("bet:cancelled", { userId: user.id, matchId: bet.matchId });
   renderMatches();
