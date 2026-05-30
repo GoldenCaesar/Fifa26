@@ -453,6 +453,7 @@ async function loginByHandle(handle) {
         
         // Load user from database into local state
         user = createNewUser(dbUser.handle);
+        user.dbId = dbUser.id; // Store database UUID
         user.balance = dbUser.balance || 100;
         user.totalScore = dbUser.total_score || 0;
         user.teamPoints = dbUser.team_points || 0;
@@ -496,9 +497,13 @@ async function loginByHandle(handle) {
     
     console.log(`Created new user: ${handle}`);
     
-    // Sync new user to Supabase immediately
-    syncUserToSupabase(user).then(() => {
-      console.log(`User ${handle} synced to Supabase`);
+    // Sync new user to Supabase immediately and store database UUID
+    syncUserToSupabase(user).then(dbId => {
+      if (dbId) {
+        user.dbId = dbId;
+        persistState();
+        console.log(`User ${handle} synced to Supabase with UUID ${dbId}`);
+      }
     }).catch(err => {
       console.warn("Failed to sync user to Supabase:", err);
     });
@@ -632,22 +637,10 @@ function deleteUser(userId) {
 async function syncUserToSupabase(user) {
   if (!state.supabase) {
     console.warn('Supabase not connected, cannot sync user');
-    return;
+    return null;
   }
   
   try {
-    // Check if user already exists (case-insensitive)
-    const { data: existing, error: checkError } = await state.supabase
-      .from('users')
-      .select('handle')
-      .ilike('handle', user.handle)
-      .maybeSingle();
-    
-    if (checkError) {
-      console.warn('Error checking if user exists:', checkError);
-      return;
-    }
-    
     const userData = {
       balance: user.balance || 100,
       total_score: user.totalScore || 0,
@@ -660,39 +653,46 @@ async function syncUserToSupabase(user) {
     
     console.log(`Syncing user ${user.handle} to Supabase:`, userData);
     
-    if (existing) {
-      // Update existing user
+    if (user.dbId) {
+      // Update existing user by database UUID
       const { error } = await state.supabase
         .from('users')
         .update(userData)
-        .ilike('handle', user.handle);
+        .eq('id', user.dbId);
       
       if (error) {
         console.error('Supabase user update failed:', error);
         console.error('Attempted to update with:', userData);
+        return null;
       } else {
         console.log(`✓ Updated user ${user.handle} in Supabase (picks: ${user.rankings?.length || 0}, locked: ${userData.picks_locked})`);
+        return user.dbId;
       }
     } else {
-      // Insert new user (use upsert to handle race conditions)
-      const { error } = await state.supabase
+      // Insert new user and get the database UUID back
+      const { data, error } = await state.supabase
         .from('users')
         .upsert({
           handle: user.handle,
           ...userData
         }, {
           onConflict: 'handle'
-        });
+        })
+        .select('id')
+        .single();
       
       if (error) {
         console.error('Supabase user upsert failed:', error);
         console.error('Attempted to upsert:', { handle: user.handle, ...userData });
+        return null;
       } else {
         console.log(`✓ Saved user ${user.handle} to Supabase (picks: ${user.rankings?.length || 0}, locked: ${userData.picks_locked})`);
+        return data.id;
       }
     }
   } catch (err) {
     console.warn('Supabase sync error:', err);
+    return null;
   }
 }
 
@@ -737,6 +737,7 @@ async function loadUsersFromSupabase() {
         if (!existingUser && dbUser.handle.toLowerCase() !== 'admin') {
           // Create user from Supabase data
           const newUser = createNewUser(dbUser.handle);
+          newUser.dbId = dbUser.id; // Store database UUID
           newUser.balance = dbUser.balance || 100;
           newUser.totalScore = dbUser.total_score || 0;
           newUser.teamPoints = dbUser.team_points || 0;
@@ -778,8 +779,15 @@ async function syncBetToSupabase(bet) {
   try {
     // If bet already has a database UUID, update it
     if (bet.dbId) {
+      // Need to get the user's database UUID
+      const user = state.data.users.find(u => u.id === bet.userId);
+      if (!user || !user.dbId) {
+        console.error('Cannot update bet: user has no database UUID');
+        return null;
+      }
+      
       const betData = {
-        user_id: bet.userId,
+        user_id: user.dbId, // Use database UUID, not local ID
         match_id: bet.matchId,
         pick: bet.pick,
         odds: bet.odds,
@@ -805,8 +813,15 @@ async function syncBetToSupabase(bet) {
       }
     } else {
       // New bet - let database generate UUID
+      // Need to get the user's database UUID
+      const user = state.data.users.find(u => u.id === bet.userId);
+      if (!user || !user.dbId) {
+        console.error('Cannot create bet: user has no database UUID');
+        return null;
+      }
+      
       const betData = {
-        user_id: bet.userId,
+        user_id: user.dbId, // Use database UUID, not local ID
         match_id: bet.matchId,
         pick: bet.pick,
         odds: bet.odds,
@@ -863,11 +878,18 @@ async function loadBetsFromSupabase(userId) {
     return;
   }
   
+  // Find user and get their database UUID
+  const user = state.data.users.find(u => u.id === userId);
+  if (!user || !user.dbId) {
+    console.warn('Cannot load bets: user has no database UUID');
+    return;
+  }
+  
   try {
     const { data: dbBets, error } = await state.supabase
       .from('bets')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', user.dbId); // Use database UUID
     
     if (error) {
       console.warn('Failed to load bets from Supabase:', error);
@@ -875,7 +897,7 @@ async function loadBetsFromSupabase(userId) {
     }
     
     if (dbBets && dbBets.length > 0) {
-      console.log(`Loading ${dbBets.length} bets for user ${userId} from Supabase...`);
+      console.log(`Loading ${dbBets.length} bets for user ${user.handle} from Supabase...`);
       
       // Remove existing bets for this user from local state
       state.data.bets = state.data.bets.filter(b => b.userId !== userId);
@@ -885,7 +907,7 @@ async function loadBetsFromSupabase(userId) {
         state.data.bets.push({
           id: `bet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           dbId: dbBet.id, // Store database UUID separately
-          userId: dbBet.user_id,
+          userId: userId, // Use LOCAL user ID
           matchId: dbBet.match_id,
           pick: dbBet.pick,
           odds: dbBet.odds,
@@ -983,7 +1005,12 @@ function syncUserRankingsWithTeamStats() {
     
     // Sync updated scores to database
     if (state.supabase && user.handle !== 'admin') {
-      syncUserToSupabase(user).catch(err => {
+      syncUserToSupabase(user).then(dbId => {
+        if (dbId && !user.dbId) {
+          user.dbId = dbId;
+          persistState();
+        }
+      }).catch(err => {
         console.warn(`Failed to sync ${user.handle} scores to Supabase:`, err);
       });
     }
@@ -1283,8 +1310,13 @@ function lockUserPicks() {
   
   persistState();
   
-  // Sync user picks to Supabase
-  syncUserToSupabase(user).catch(err => {
+  // Sync user picks to Supabase and store database UUID
+  syncUserToSupabase(user).then(dbId => {
+    if (dbId && !user.dbId) {
+      user.dbId = dbId;
+      persistState();
+    }
+  }).catch(err => {
     console.warn("Failed to sync picks to Supabase:", err);
   });
 
