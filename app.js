@@ -71,39 +71,74 @@ function normalizeTeamName(name) {
     .replace(/[^a-z0-9]/g, ""); // strip anything except lowercase alphanumeric
 }
 
-// Global lookup map connecting normalized team name variants to their World Cup Group letter
-const TEAM_TO_GROUP_MAP = {
-  // Group A
-  "mexico": "A", "southafrica": "A", "southkorea": "A", "korearepublic": "A", "korea": "A", "czechia": "A", "czechrepublic": "A", "czech": "A",
-  // Group B
-  "canada": "B", "bosniaandherzegovina": "B", "bosnia": "B", "bosniaherzegovina": "B", "qatar": "B", "switzerland": "B",
-  // Group C
-  "brazil": "C", "morocco": "C", "haiti": "C", "scotland": "C",
-  // Group D
-  "usa": "D", "unitedstates": "D", "unitedstatesofamerica": "D", "paraguay": "D", "australia": "D", "turkey": "D", "turkiye": "D",
-  // Group E
-  "germany": "E", "curacao": "E", "cotedivoire": "E", "ivorycoast": "E", "ecuador": "E",
-  // Group F
-  "netherlands": "F", "japan": "F", "sweden": "F", "tunisia": "F",
-  // Group G
-  "belgium": "G", "egypt": "G", "iran": "G", "iriran": "G", "newzealand": "G",
-  // Group H
-  "spain": "H", "capeverde": "H", "caboverde": "H", "saudiarabia": "H", "uruguay": "H",
-  // Group I
-  "france": "I", "senegal": "I", "iraq": "I", "norway": "I",
-  // Group J
-  "argentina": "J", "algeria": "J", "austria": "J", "jordan": "J",
-  // Group K
-  "portugal": "K", "drcongo": "K", "congodr": "K", "democraticrepublicofcongo": "K", "uzbekistan": "K", "colombia": "K",
-  // Group L
-  "england": "L", "croatia": "L", "ghana": "L", "panama": "L"
+// Global lookup mapping keys to their canonical names
+const CANONICAL_TEAMS_MAP = {
+  "mexico": "Mexico",
+  "southafrica": "South Africa",
+  "southkorea": "South Korea", "korearepublic": "South Korea", "korea": "South Korea",
+  "czechia": "Czechia", "czechrepublic": "Czechia", "czech": "Czechia",
+  "canada": "Canada",
+  "bosniaandherzegovina": "Bosnia and Herzegovina", "bosnia": "Bosnia and Herzegovina", "bosniaherzegovina": "Bosnia and Herzegovina",
+  "qatar": "Qatar",
+  "switzerland": "Switzerland",
+  "brazil": "Brazil",
+  "morocco": "Morocco",
+  "haiti": "Haiti",
+  "scotland": "Scotland",
+  "usa": "USA", "unitedstates": "USA", "unitedstatesofamerica": "USA",
+  "paraguay": "Paraguay",
+  "australia": "Australia",
+  "turkey": "Türkiye", "turkiye": "Türkiye",
+  "germany": "Germany",
+  "curacao": "Curaçao",
+  "cotedivoire": "Côte d'Ivoire", "ivorycoast": "Côte d'Ivoire",
+  "ecuador": "Ecuador",
+  "netherlands": "Netherlands",
+  "japan": "Japan",
+  "sweden": "Sweden",
+  "tunisia": "Tunisia",
+  "belgium": "Belgium",
+  "egypt": "Egypt",
+  "iran": "Iran", "iriran": "Iran",
+  "newzealand": "New Zealand",
+  "spain": "Spain",
+  "capeverde": "Cape Verde", "caboverde": "Cape Verde",
+  "saudiarabia": "Saudi Arabia",
+  "uruguay": "Uruguay",
+  "france": "France",
+  "senegal": "Senegal",
+  "iraq": "Iraq",
+  "norway": "Norway",
+  "argentina": "Argentina",
+  "algeria": "Algeria",
+  "austria": "Austria",
+  "jordan": "Jordan",
+  "portugal": "Portugal",
+  "drcongo": "DR Congo", "congodr": "DR Congo", "democraticrepublicofcongo": "DR Congo",
+  "uzbekistan": "Uzbekistan",
+  "colombia": "Colombia",
+  "england": "England",
+  "croatia": "Croatia",
+  "ghana": "Ghana",
+  "panama": "Panama"
 };
+
+// Retrieve canonical team name
+function getCanonicalTeamName(teamName) {
+  if (!teamName) return teamName;
+  const normalized = normalizeTeamName(teamName);
+  return CANONICAL_TEAMS_MAP[normalized] || teamName;
+}
 
 // Retrieve World Cup Group letter for a given team name
 function getTeamGroup(teamName) {
-  if (!teamName) return null;
-  const normalized = normalizeTeamName(teamName);
-  return TEAM_TO_GROUP_MAP[normalized] || null;
+  const canonical = getCanonicalTeamName(teamName);
+  for (const [groupLetter, teams] of Object.entries(OFFICIAL_WC_2026_GROUPS)) {
+    if (teams.includes(canonical)) {
+      return groupLetter;
+    }
+  }
+  return null;
 }
 
 // Retrieve World Cup Group letter for a match of home vs away team
@@ -113,6 +148,25 @@ function getMatchGroup(home, away) {
   const awayGroup = getTeamGroup(away);
   if (awayGroup) return awayGroup;
   return null;
+}
+
+// Check and canonicalize any stored match entries in state to prevent duplicates on load
+function sanitizeStateMatches() {
+  if (state && state.data && state.data.matches) {
+    let changed = false;
+    state.data.matches.forEach(m => {
+      const canonicalHome = getCanonicalTeamName(m.home);
+      const canonicalAway = getCanonicalTeamName(m.away);
+      if (m.home !== canonicalHome || m.away !== canonicalAway) {
+        m.home = canonicalHome;
+        m.away = canonicalAway;
+        changed = true;
+      }
+    });
+    if (changed) {
+      persistState();
+    }
+  }
 }
 
 let picksState = [];
@@ -132,6 +186,9 @@ if (!state.data) {
   state.data = createInitialState();
   persistState();
 }
+
+// Clean up database stored or cached names and keep them standardized to the 48 official teams
+sanitizeStateMatches();
 
 // Initialize matches on startup
 if (!state.data.matches || state.data.matches.length === 0) {
@@ -781,6 +838,10 @@ function updateDynamicGroupsAndTeams() {
   });
   
   state.data.matches.forEach(m => {
+    // Canonicalize home and away team names dynamically on the fly to eliminate duplication!
+    m.home = getCanonicalTeamName(m.home);
+    m.away = getCanonicalTeamName(m.away);
+
     teamsSet.add(m.home);
     teamsSet.add(m.away);
     
@@ -807,6 +868,9 @@ function updateDynamicGroupsAndTeams() {
   if (Object.keys(newGroups).length > 0) {
     const formattedGroups = {};
     Object.keys(newGroups).sort().forEach(k => {
+      // Direct assignment uses unique canonical names inside each group.
+      // Filter out any teams that aren't canonically part of this group (if necessary),
+      // but since we canonicalized them, we can just assign the unique Set of canonical names.
       formattedGroups[k] = Array.from(newGroups[k]);
     });
     WC_2026_GROUPS = formattedGroups;
