@@ -1302,6 +1302,47 @@ select {
   }
 }
 
+@media (max-width: 650px) {
+  .top-bar-right .btn span,
+  .top-bar-right #user-menu-btn span,
+  .top-bar-right #top-bar-admin-badge span {
+    display: none !important;
+  }
+  
+  .top-bar-right .btn,
+  .top-bar-right #user-menu-btn {
+    padding: 8px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin-right: 4px !important;
+    gap: 0 !important;
+  }
+
+  .top-bar-right .btn i,
+  .top-bar-right #user-menu-btn i {
+    margin: 0 !important;
+  }
+
+  .top-bar-right #user-menu-btn i:last-child {
+    display: none !important; /* Hide dropdown caret on small screens */
+  }
+
+  .top-bar-right {
+    gap: 4px;
+  }
+  
+  .admin-badge {
+    padding: 8px !important;
+    border-radius: 50% !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    justify-content: center !important;
+  }
+}
+
 @media (max-width: 500px) {
   .top-bar h1 {
     font-size: 0.8rem;

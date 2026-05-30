@@ -34,44 +34,86 @@ const GROUPS = {
   "Group C": ["Spain", "Portugal", "Italy", "Croatia"]
 };
 
-// FIFA World Cup 2026 - Official Groups (48 teams, 12 groups)
-// Based on actual tournament draw from Google search results
+// FIFA World Cup 2026 - Official Draw Groups (48 teams, 12 groups)
+// Based on official tournament draw of December 2025
 let WC_2026_GROUPS = {
   "A": ["Mexico", "South Africa", "South Korea", "Czechia"],
   "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
   "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
   "D": ["USA", "Paraguay", "Australia", "Türkiye"],
-  "E": ["England", "Netherlands", "Tunisia", "Costa Rica"],
-  "F": ["France", "Denmark", "Saudi Arabia", "Peru"],
-  "G": ["Spain", "Croatia", "Iran", "Jamaica"],
-  "H": ["Argentina", "Poland", "Ukraine", "Wales"],
-  "I": ["Portugal", "Belgium", "Senegal", "Japan"],
-  "J": ["Germany", "Italy", "Colombia", "Ecuador"],
-  "K": ["Uruguay", "Norway", "Algeria", "Panama"],
-  "L": ["Chile", "Ghana", "Serbia", "Honduras"]
+  "E": ["Germany", "Curaçao", "Côte d'Ivoire", "Ecuador"],
+  "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
+  "G": ["Belgium", "Egypt", "Iran", "New Zealand"],
+  "H": ["Spain", "Cape Verde", "Saudi Arabia", "Uruguay"],
+  "I": ["France", "Senegal", "Iraq", "Norway"],
+  "J": ["Argentina", "Algeria", "Austria", "Jordan"],
+  "K": ["Portugal", "DR Congo", "Uzbekistan", "Colombia"],
+  "L": ["England", "Croatia", "Ghana", "Panama"]
 };
 
-// Full FIFA World Cup 2026 team roster (alphabetical)
+const OFFICIAL_WC_2026_GROUPS = JSON.parse(JSON.stringify(WC_2026_GROUPS));
+
+// Full FIFA World Cup 2026 team roster (alphabetical - 48 teams)
 let WC_TEAMS = [
-  "Algeria", "Argentina", "Australia", "Austria",
-  "Belgium", "Bosnia and Herzegovina", "Brazil",
-  "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czechia",
-  "Denmark",
-  "Ecuador", "Egypt", "England",
-  "France",
-  "Germany", "Ghana",
-  "Haiti", "Honduras",
-  "Iran", "Italy",
-  "Jamaica", "Japan",
-  "Mexico", "Morocco",
-  "Netherlands", "Norway",
-  "Panama", "Paraguay", "Peru", "Poland", "Portugal",
-  "Qatar",
-  "Saudi Arabia", "Scotland", "Senegal", "Serbia", "South Africa", "South Korea", "Spain", "Switzerland",
-  "Tunisia", "T\u00fcrkiye",
-  "Ukraine", "Uruguay", "USA",
-  "Wales"
+  "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Bosnia and Herzegovina",
+  "Brazil", "Canada", "Cape Verde", "Colombia", "Croatia", "Curaçao", "Czechia", "Côte d'Ivoire",
+  "DR Congo", "Ecuador", "Egypt", "England", "France", "Germany", "Ghana", "Haiti", "Iran",
+  "Iraq", "Japan", "Jordan", "Mexico", "Morocco", "Netherlands", "New Zealand", "Norway",
+  "Panama", "Paraguay", "Portugal", "Qatar", "Saudi Arabia", "Scotland", "Senegal", "South Africa",
+  "South Korea", "Spain", "Sweden", "Switzerland", "Tunisia", "Türkiye", "Uruguay", "USA", "Uzbekistan"
 ];
+
+// Normalize a team name for fuzzy matching across standard names and API variants
+function normalizeTeamName(name) {
+  if (!name) return "";
+  return name.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents/diacritics e.g., Curaçao -> Curacao
+    .replace(/[^a-z0-9]/g, ""); // strip anything except lowercase alphanumeric
+}
+
+// Global lookup map connecting normalized team name variants to their World Cup Group letter
+const TEAM_TO_GROUP_MAP = {
+  // Group A
+  "mexico": "A", "southafrica": "A", "southkorea": "A", "korearepublic": "A", "korea": "A", "czechia": "A", "czechrepublic": "A", "czech": "A",
+  // Group B
+  "canada": "B", "bosniaandherzegovina": "B", "bosnia": "B", "bosniaherzegovina": "B", "qatar": "B", "switzerland": "B",
+  // Group C
+  "brazil": "C", "morocco": "C", "haiti": "C", "scotland": "C",
+  // Group D
+  "usa": "D", "unitedstates": "D", "unitedstatesofamerica": "D", "paraguay": "D", "australia": "D", "turkey": "D", "turkiye": "D",
+  // Group E
+  "germany": "E", "curacao": "E", "cotedivoire": "E", "ivorycoast": "E", "ecuador": "E",
+  // Group F
+  "netherlands": "F", "japan": "F", "sweden": "F", "tunisia": "F",
+  // Group G
+  "belgium": "G", "egypt": "G", "iran": "G", "iriran": "G", "newzealand": "G",
+  // Group H
+  "spain": "H", "capeverde": "H", "caboverde": "H", "saudiarabia": "H", "uruguay": "H",
+  // Group I
+  "france": "I", "senegal": "I", "iraq": "I", "norway": "I",
+  // Group J
+  "argentina": "J", "algeria": "J", "austria": "J", "jordan": "J",
+  // Group K
+  "portugal": "K", "drcongo": "K", "congodr": "K", "democraticrepublicofcongo": "K", "uzbekistan": "K", "colombia": "K",
+  // Group L
+  "england": "L", "croatia": "L", "ghana": "L", "panama": "L"
+};
+
+// Retrieve World Cup Group letter for a given team name
+function getTeamGroup(teamName) {
+  if (!teamName) return null;
+  const normalized = normalizeTeamName(teamName);
+  return TEAM_TO_GROUP_MAP[normalized] || null;
+}
+
+// Retrieve World Cup Group letter for a match of home vs away team
+function getMatchGroup(home, away) {
+  const homeGroup = getTeamGroup(home);
+  if (homeGroup) return homeGroup;
+  const awayGroup = getTeamGroup(away);
+  if (awayGroup) return awayGroup;
+  return null;
+}
 
 let picksState = [];
 let countdownInterval = null;
@@ -727,17 +769,31 @@ async function deleteUserFromSupabase(handle) {
   }
 }
 
-// Utility to parse dynamic groups from matches
+// Utility to parse dynamic groups from matches and map them to official World Cup 2026 draw groups
 function updateDynamicGroupsAndTeams() {
   const newGroups = {};
   const teamsSet = new Set();
+  
+  // Initialize with official groups structure to guarantee all 12 are available and correctly seeded
+  Object.entries(OFFICIAL_WC_2026_GROUPS).forEach(([gLetter, teams]) => {
+    newGroups[gLetter] = new Set(teams);
+    teams.forEach(t => teamsSet.add(t));
+  });
   
   state.data.matches.forEach(m => {
     teamsSet.add(m.home);
     teamsSet.add(m.away);
     
-    // Check if match has group metadata from API (e.g. "Group Stage - Group E")
-    if (m.group && m.group.toLowerCase().includes("group")) {
+    // Assign group dynamically if the match is part of group stage and has empty group
+    if (!m.round || m.round.includes("Group")) {
+      const gLetter = getMatchGroup(m.home, m.away);
+      if (gLetter) {
+        m.group = `Group ${gLetter}`;
+        if (!newGroups[gLetter]) newGroups[gLetter] = new Set();
+        newGroups[gLetter].add(m.home);
+        newGroups[gLetter].add(m.away);
+      }
+    } else if (m.group && m.group.toLowerCase().includes("group")) {
       const matchPattern = m.group.match(/Group\s+([A-L])/i);
       const letter = matchPattern ? matchPattern[1].toUpperCase() : null;
       if (letter) {
@@ -749,7 +805,6 @@ function updateDynamicGroupsAndTeams() {
   });
 
   if (Object.keys(newGroups).length > 0) {
-    // Convert sets to arrays
     const formattedGroups = {};
     Object.keys(newGroups).sort().forEach(k => {
       formattedGroups[k] = Array.from(newGroups[k]);
@@ -2889,6 +2944,8 @@ async function fetchMatchesForDay(dayYmd) {
 }
 
 function convertDbMatchToApp(dbMatch) {
+  const resHome = dbMatch.result_home != null ? Number(dbMatch.result_home) : null;
+  const resAway = dbMatch.result_away != null ? Number(dbMatch.result_away) : null;
   return {
     id: dbMatch.id,
     day: dbMatch.day,
@@ -2901,10 +2958,14 @@ function convertDbMatchToApp(dbMatch) {
       away: Number(dbMatch.odds_away)
     },
     status: dbMatch.status,
+    resultHome: resHome,
+    resultAway: resAway,
     result: dbMatch.winner ? {
       winner: dbMatch.winner,
-      homeScore: dbMatch.result_home,
-      awayScore: dbMatch.result_away
+      home: resHome,
+      away: resAway,
+      homeScore: resHome,
+      awayScore: resAway
     } : null
   };
 }
