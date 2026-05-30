@@ -454,11 +454,11 @@ async function loginByHandle(handle) {
         // Load user from database into local state
         user = createNewUser(dbUser.handle);
         user.dbId = dbUser.id; // Store database UUID
-        user.balance = dbUser.balance || 100;
-        user.totalScore = dbUser.total_score || 0;
-        user.teamPoints = dbUser.team_points || 0;
-        user.betPoints = dbUser.bet_points || 0;
-        user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams || 0;
+        user.balance = dbUser.balance ?? 100;
+        user.totalScore = dbUser.total_score ?? 0;
+        user.teamPoints = dbUser.team_points ?? 0;
+        user.betPoints = dbUser.bet_points ?? 0;
+        user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
         
         // Preserve rankings from database (handle null/undefined)
         if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
@@ -515,6 +515,22 @@ async function loginByHandle(handle) {
   
   // Load user's bets from Supabase
   await loadBetsFromSupabase(user.id);
+  
+  // Recalculate user balance from bets to fix any sync issues
+  // Balance = starting coins + coins from teams - total wagered
+  const totalWagered = state.data.bets
+    .filter(b => b.userId === user.id)
+    .reduce((sum, bet) => sum + bet.wager, 0);
+  
+  const correctBalance = 100 + (user.coinsEarnedFromTeams || 0) - totalWagered;
+  
+  if (user.balance !== correctBalance) {
+    console.log(`Reconciling balance for ${user.handle}: DB says ${user.balance}, should be ${correctBalance} (earned: ${user.coinsEarnedFromTeams}, wagered: ${totalWagered})`);
+    user.balance = correctBalance;
+    persistState();
+    // Sync corrected balance back to database
+    syncUserToSupabase(user);
+  }
 
   const logo = document.getElementById("logo-wrap");
   logo.classList.add("explode");
@@ -642,11 +658,11 @@ async function syncUserToSupabase(user) {
   
   try {
     const userData = {
-      balance: user.balance || 100,
-      total_score: user.totalScore || 0,
-      team_points: user.teamPoints || 0,
-      bet_points: user.betPoints || 0,
-      coins_earned_from_teams: user.coinsEarnedFromTeams || 0,
+      balance: user.balance ?? 100,
+      total_score: user.totalScore ?? 0,
+      team_points: user.teamPoints ?? 0,
+      bet_points: user.betPoints ?? 0,
+      coins_earned_from_teams: user.coinsEarnedFromTeams ?? 0,
       picks_locked: user.picksLocked === true,
       rankings: user.rankings || []
     };
@@ -738,11 +754,11 @@ async function loadUsersFromSupabase() {
           // Create user from Supabase data
           const newUser = createNewUser(dbUser.handle);
           newUser.dbId = dbUser.id; // Store database UUID
-          newUser.balance = dbUser.balance || 100;
-          newUser.totalScore = dbUser.total_score || 0;
-          newUser.teamPoints = dbUser.team_points || 0;
-          newUser.betPoints = dbUser.bet_points || 0;
-          newUser.coinsEarnedFromTeams = dbUser.coins_earned_from_teams || 0;
+          newUser.balance = dbUser.balance ?? 100;
+          newUser.totalScore = dbUser.total_score ?? 0;
+          newUser.teamPoints = dbUser.team_points ?? 0;
+          newUser.betPoints = dbUser.bet_points ?? 0;
+          newUser.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
           
           // Preserve rankings from database
           if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
@@ -2135,11 +2151,16 @@ function renderMatches() {
   const totalScoreEl = document.getElementById("betting-total-score");
   const teamPointsEl = document.getElementById("betting-team-points");
   const betPointsEl = document.getElementById("betting-bet-points");
+  const activeCountEl = document.getElementById("betting-active-count");
   
   if (coinBalanceEl) coinBalanceEl.textContent = Math.floor(user.balance).toLocaleString();
   if (totalScoreEl) totalScoreEl.textContent = user.totalScore.toLocaleString();
   if (teamPointsEl) teamPointsEl.textContent = (user.teamPoints || 0).toLocaleString();
   if (betPointsEl) betPointsEl.textContent = (user.betPoints || 0).toLocaleString();
+  
+  // Count active bets for this user
+  const activeBetCount = state.data.bets.filter(b => b.userId === user.id && b.status === "active").length;
+  if (activeCountEl) activeCountEl.textContent = activeBetCount;
 
   const now = new Date();
   const todayYmd = toYmd(now, state.config.timezone);
@@ -2185,6 +2206,15 @@ function renderMatches() {
             entry.status === "active"
         ).length;
         const canPlace = activeCount < state.config.maxActiveBetsPerMatch;
+        
+        // Find existing active bet on this match
+        const existingBet = state.data.bets.find(
+          (entry) =>
+            entry.userId === user.id &&
+            entry.matchId === match.id &&
+            entry.status === "active"
+        );
+        
         const oddsRow = document.createElement("div");
         oddsRow.className = "odds-row";
         const betInputId = `wager-${match.id}`;
@@ -2214,19 +2244,32 @@ function renderMatches() {
         wager.innerHTML = `
           <div>
             <label>Wager Coins</label>
-            <input id="${betInputId}" type="number" min="1" max="${Math.floor(user.balance)}" value="10">
+            <input id="${betInputId}" type="number" min="1" max="${Math.floor(user.balance)}" value="${existingBet ? existingBet.wager : 10}" ${!canPlace ? 'disabled' : ''}>
           </div>
-          <button class="btn btn-primary">Place Bet</button>
+          <button class="btn btn-primary" ${!canPlace ? 'disabled' : ''}>Place Bet</button>
         `;
 
         const profit = document.createElement("div");
         profit.className = "profit-line";
         profit.textContent = "Potential Profit: +0 points";
 
-        let selected = null;
+        let selected = existingBet ? { pick: existingBet.pick, odds: existingBet.odds } : null;
 
         oddsRow.querySelectorAll(".odds-btn").forEach((button) => {
+          // Pre-select the button if user has existing bet
+          if (existingBet && button.dataset.pick === existingBet.pick) {
+            button.classList.add("active");
+          }
+          
+          // Disable buttons if already bet
+          if (!canPlace) {
+            button.disabled = true;
+            button.style.opacity = "0.6";
+            button.style.cursor = "not-allowed";
+          }
+          
           button.addEventListener("click", () => {
+            if (!canPlace) return; // Don't allow changing bet
             oddsRow.querySelectorAll(".odds-btn").forEach((node) => node.classList.remove("active"));
             button.classList.add("active");
             selected = {
@@ -2249,6 +2292,11 @@ function renderMatches() {
           const p = Math.max(value * selected.odds, value * 0.1);
           const totalReturn = value + p;
           profit.textContent = `Win: +${Math.round(totalReturn)} points to your score (${value} coins × ${selected.odds.toFixed(2)} odds)`;
+        }
+        
+        // Initialize profit display if there's an existing bet
+        if (existingBet) {
+          updateProfit();
         }
 
         wager.querySelector("button").addEventListener("click", () => {
