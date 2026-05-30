@@ -246,10 +246,30 @@
             </article>
             <article class="panel admin-section">
               <div class="panel-head">
-                <h3><i class="material-symbols-outlined">autorenew</i> Daily Refresh</h3>
+                <h3><i class="material-symbols-outlined">autorenew</i> Daily Refresh & Monitoring</h3>
               </div>
-              <p class="inline-note">Calls the <strong>Supabase Edge Function</strong> to fetch real match data from your sports APIs (Odds API & API-Football). The Edge Function must be deployed first - see <code>EDGE_FUNCTION_DEPLOYMENT.md</code></p>
-              <button id="admin-refresh-btn" class="btn btn-primary" style="width:100%;margin-top:10px">Fetch Matches from APIs <i class="material-symbols-outlined">cloud_download</i></button>
+              <p class="inline-note">Calls the <strong>Supabase Edge Function</strong> to fetch real match data from your sports APIs (Odds API & API-Football).</p>
+              
+              <!-- Monitoring Info -->
+              <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:8px;margin:12px 0;font-size:0.85rem">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                  <span style="color:var(--muted)">Last Refresh:</span>
+                  <span id="last-refresh-display" style="color:#fff">Never</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                  <span style="color:var(--muted)">Auto-Refresh Status:</span>
+                  <span id="auto-refresh-status" style="color:#4caf50">● Active</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--muted)">Next Check:</span>
+                  <span id="next-check-display" style="color:var(--muted)">Checking every minute</span>
+                </div>
+              </div>
+              
+              <button id="admin-refresh-btn" class="btn btn-primary" style="width:100%;margin-top:10px">Force Fetch from APIs <i class="material-symbols-outlined">cloud_download</i></button>
+              <button id="test-midnight-refresh-btn" class="btn btn-secondary" style="width:100%;margin-top:10px">
+                <i class="material-symbols-outlined">science</i> Test Midnight Refresh (Simulate)
+              </button>
               <div id="admin-refresh-status" class="inline-note" style="margin-top:8px"></div>
             </article>
           </div>
@@ -291,6 +311,24 @@
               <p class="inline-note" style="margin-top:10px;color:var(--muted);font-size:0.85rem">
                 ⚠️ Warning: This will permanently delete your account, team picks, and all bet history. This cannot be undone.
               </p>
+            </div>
+          </article>
+          
+          <!-- User refresh status panel -->
+          <article class="panel">
+            <div class="panel-head">
+              <h3><i class="material-symbols-outlined">schedule</i> Auto-Update Status</h3>
+            </div>
+            <p class="inline-note">Match data and scores update automatically at midnight PST each day.</p>
+            <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:8px;margin:12px 0;font-size:0.85rem">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <span style="color:var(--muted)">Last Update:</span>
+                <span id="user-last-refresh-display" style="color:#fff">Never</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--muted)">Status:</span>
+                <span id="user-auto-refresh-status" style="color:#4caf50">● Auto-updates active</span>
+              </div>
             </div>
           </article>
           

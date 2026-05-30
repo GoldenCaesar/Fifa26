@@ -306,9 +306,65 @@ function wireSettings() {
     await callEdgeFunctionRefresh();
     
     btn.disabled = false;
-    btn.innerHTML = 'Force Daily Refresh <i class="material-symbols-outlined">autorenew</i>';
+    btn.innerHTML = 'Force Fetch from APIs <i class="material-symbols-outlined">cloud_download</i>';
     status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
+    
+    // Update status displays
+    updateRefreshStatusDisplays();
   });
+  
+  // Test midnight refresh button (admin only)
+  const testMidnightBtn = document.getElementById("test-midnight-refresh-btn");
+  if (testMidnightBtn) {
+    testMidnightBtn.addEventListener("click", async () => {
+      const status = document.getElementById("admin-refresh-status");
+      const btn = testMidnightBtn;
+      
+      btn.disabled = true;
+      btn.innerHTML = '<i class="material-symbols-outlined">hourglass_empty</i> Running test...';
+      status.innerHTML = '🧪 <strong>Simulating midnight refresh...</strong><br>This tests score updates, bet settlements, and match locking without fetching new API data.';
+      
+      console.log("=== TEST MIDNIGHT REFRESH STARTED ===");
+      const now = new Date();
+      const todayKey = toYmd(now, state.config.timezone);
+      
+      try {
+        // Run the midnight refresh logic without forcing API fetch
+        console.log("Testing score sync...");
+        syncUserRankingsWithTeamStats();
+        
+        console.log("Testing match locking...");
+        lockTodaysMatches(todayKey);
+        
+        console.log("Testing bet settlement...");
+        settleYesterdayBets(todayKey);
+        
+        console.log("Testing leaderboard recompute...");
+        recomputeLeaderboard();
+        
+        console.log("Recording daily scores...");
+        recordDailyScores(todayKey);
+        
+        state.data.cache.lastRefreshYmd = todayKey;
+        state.data.cache.lastRefreshedAt = now.toISOString();
+        persistState();
+        
+        console.log("=== TEST MIDNIGHT REFRESH COMPLETED ===");
+        
+        status.innerHTML = `✅ <strong>Test successful!</strong><br>Scores synced, bets settled, matches locked. Last test: ${now.toLocaleTimeString()} PST`;
+        
+        // Update displays
+        updateRefreshStatusDisplays();
+        renderApp();
+      } catch (err) {
+        console.error("Test midnight refresh failed:", err);
+        status.innerHTML = `❌ <strong>Test failed:</strong> ${err.message}`;
+      }
+      
+      btn.disabled = false;
+      btn.innerHTML = '<i class="material-symbols-outlined">science</i> Test Midnight Refresh (Simulate)';
+    });
+  }
   
   // User delete account button
   const deleteAccountBtn = document.getElementById("delete-account-btn");
@@ -499,8 +555,12 @@ function switchView(target) {
     renderMatches();
     renderCommunity();
     renderHistory();
-  } else if (target === "settings" && state.isAdmin) {
-    renderAdminPanel();
+  } else if (target === "settings") {
+    if (state.isAdmin) {
+      renderAdminPanel();
+    }
+    // Update refresh status displays for all users
+    updateRefreshStatusDisplays();
   }
 }
 
@@ -1093,33 +1153,48 @@ function lockUserPicks() {
 async function runDailyRefresh(force) {
   const now = new Date();
   const todayKey = toYmd(now, state.config.timezone);
-  if (!force && state.data.cache.lastRefreshYmd === todayKey) return;
+  if (!force && state.data.cache.lastRefreshYmd === todayKey) {
+    console.log("Daily refresh already ran today, skipping...");
+    return;
+  }
 
-  console.log("Running daily refresh...");
+  console.log("🔄 Running daily refresh...");
   
   // Check if we need to fetch fresh data from API (only once per day at midnight)
   const needsApiFetch = await shouldFetchFromApi(todayKey);
   if (needsApiFetch) {
-    console.log("Fetching fresh match data from Odds API via Edge Function...");
+    console.log("📡 Fetching fresh match data from Odds API via Edge Function...");
     await callEdgeFunctionRefresh();
   } else {
-    console.log("Using cached match data from database (already up to date)");
+    console.log("💾 Using cached match data from database (already up to date)");
     await loadWorldCupMatchesFromDatabase();
   }
   
   // Update user scores from real match results
+  console.log("📊 Syncing user rankings with team stats...");
   syncUserRankingsWithTeamStats();
   
+  console.log("🔒 Locking today's matches...");
   lockTodaysMatches(todayKey);
+  
+  console.log("💰 Settling yesterday's bets...");
   settleYesterdayBets(todayKey);
+  
+  console.log("🏆 Recomputing leaderboard...");
   recomputeLeaderboard();
   
   // Record daily scores for history tracking
+  console.log("📝 Recording daily scores...");
   recordDailyScores(todayKey);
 
   state.data.cache.lastRefreshYmd = todayKey;
   state.data.cache.lastRefreshedAt = now.toISOString();
   persistState();
+  
+  console.log("✅ Daily refresh completed successfully");
+  
+  // Update status displays
+  updateRefreshStatusDisplays();
 }
 
 async function shouldFetchFromApi(todayKey) {
@@ -2860,20 +2935,76 @@ function convertUtcToPst(utcTimeString) {
 function setupMidnightRefresh() {
   // Check every minute if we've crossed midnight PST
   let lastCheckedDay = toYmd(new Date(), "America/Los_Angeles");
+  let checkCount = 0;
+  
+  // Update status displays initially
+  updateRefreshStatusDisplays();
   
   setInterval(() => {
+    checkCount++;
     const currentDay = toYmd(new Date(), "America/Los_Angeles");
     
+    // Update displays every minute
+    updateRefreshStatusDisplays();
+    
     if (currentDay !== lastCheckedDay) {
-      console.log(`Midnight crossed (PST). New day: ${currentDay}. Running daily refresh...`);
+      console.log(`🌙 MIDNIGHT CROSSED (PST). New day: ${currentDay}. Running daily refresh...`);
       lastCheckedDay = currentDay;
-      runDailyRefresh(false).catch(err => {
-        console.error("Auto midnight refresh failed:", err);
+      runDailyRefresh(false).then(() => {
+        console.log("✅ Midnight auto-refresh completed successfully");
+        updateRefreshStatusDisplays();
+        renderApp(); // Re-render to show updated data
+      }).catch(err => {
+        console.error("❌ Auto midnight refresh failed:", err);
       });
+    } else {
+      // Log every 60 checks (once per hour)
+      if (checkCount % 60 === 0) {
+        console.log(`⏰ Midnight check #${checkCount}: Still ${currentDay}, waiting for day change...`);
+      }
     }
   }, 60000); // Check every minute
   
-  console.log("Midnight auto-refresh timer initialized (checks every minute)");
+  console.log("🔄 Midnight auto-refresh timer initialized (checks every 60 seconds)");
+}
+
+function updateRefreshStatusDisplays() {
+  const lastRefresh = state.data.cache.lastRefreshedAt;
+  const lastRefreshYmd = state.data.cache.lastRefreshYmd;
+  
+  let displayText = "Never";
+  if (lastRefresh) {
+    const refreshDate = new Date(lastRefresh);
+    const today = toYmd(new Date(), "America/Los_Angeles");
+    
+    if (lastRefreshYmd === today) {
+      displayText = `Today at ${refreshDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} PST`;
+    } else {
+      displayText = `${lastRefreshYmd} at ${refreshDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} PST`;
+    }
+  }
+  
+  // Update admin displays
+  const adminLastRefresh = document.getElementById("last-refresh-display");
+  if (adminLastRefresh) adminLastRefresh.textContent = displayText;
+  
+  // Update user displays
+  const userLastRefresh = document.getElementById("user-last-refresh-display");
+  if (userLastRefresh) userLastRefresh.textContent = displayText;
+  
+  // Calculate next midnight PST
+  const now = new Date();
+  const pstNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const nextMidnight = new Date(pstNow);
+  nextMidnight.setHours(24, 0, 0, 0);
+  
+  const hoursUntilMidnight = Math.floor((nextMidnight - pstNow) / (1000 * 60 * 60));
+  const minutesUntilMidnight = Math.floor(((nextMidnight - pstNow) % (1000 * 60 * 60)) / (1000 * 60));
+  
+  const nextCheckDisplay = document.getElementById("next-check-display");
+  if (nextCheckDisplay) {
+    nextCheckDisplay.textContent = `Next midnight: ${hoursUntilMidnight}h ${minutesUntilMidnight}m`;
+  }
 }
 
 function setStatus(id, text) {
