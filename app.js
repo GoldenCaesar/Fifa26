@@ -310,6 +310,55 @@ function wireSettings() {
     status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
   });
   
+  // User delete account button
+  const deleteAccountBtn = document.getElementById("delete-account-btn");
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener("click", () => {
+      const user = getCurrentUser();
+      if (!user) {
+        alert("No user logged in.");
+        return;
+      }
+      
+      // Prompt user to type DELETE to confirm
+      const confirmation = prompt(`⚠️ WARNING: This will permanently delete your account, team picks, and all bets.\n\nType DELETE (in capital letters) to confirm:`);
+      
+      if (confirmation !== "DELETE") {
+        if (confirmation !== null) {
+          alert("Account deletion cancelled. You must type DELETE exactly to confirm.");
+        }
+        return;
+      }
+      
+      // Delete the user
+      const userId = user.id;
+      const userHandle = user.handle;
+      
+      deleteUser(userId);
+      
+      // Log out the user
+      state.data.currentUser = null;
+      state.isAdmin = false;
+      persistState();
+      
+      // Return to login screen
+      document.getElementById("screen-app").classList.remove("active");
+      document.getElementById("screen-picks").classList.remove("active");
+      document.getElementById("screen-login").classList.add("active");
+      
+      // Reset login form
+      const handleInput = document.getElementById("handle-input");
+      const passwordInput = document.getElementById("admin-password-input");
+      const passwordField = document.getElementById("admin-password-field");
+      
+      if (handleInput) handleInput.value = "";
+      if (passwordInput) passwordInput.value = "";
+      if (passwordField) passwordField.style.display = "none";
+      
+      alert(`Account "${userHandle}" has been permanently deleted. You can create a new account if you wish.`);
+    });
+  }
+  
   // Set up automatic midnight refresh check
   setupMidnightRefresh();
 }
