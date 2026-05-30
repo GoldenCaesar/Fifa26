@@ -200,6 +200,18 @@
             <h2 id="total-score">0</h2>
             <span>Points Accumulated</span>
           </article>
+          <article class="panel" style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);padding:16px;border-radius:10px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <p style="margin:0;color:var(--muted);font-size:0.85rem">💰 Available Coins</p>
+                <h3 id="rankings-coin-balance" style="margin:4px 0 0 0;font-size:1.5rem;color:#ffd700">0</h3>
+              </div>
+              <div style="text-align:right">
+                <p style="margin:0;color:var(--muted);font-size:0.75rem">Team Points: <span id="rankings-team-points">0</span></p>
+                <p style="margin:4px 0 0 0;color:var(--muted);font-size:0.75rem">Bet Points: <span id="rankings-bet-points">0</span></p>
+              </div>
+            </div>
+          </article>
           <div class="panel-head secondary">
             <h3>Your Top 5 Teams</h3>
           </div>
@@ -218,10 +230,22 @@
 
         <section id="view-standings" class="view" data-view="standings">
           <article class="panel">
-            <div class="inline-note" style="background:rgba(57,255,20,0.08);border:1px solid rgba(57,255,20,0.2);padding:12px;border-radius:10px;margin-bottom:16px">
-              <strong>💰 How Betting Works:</strong> You earn <strong>coins</strong> by picking winning teams (10% of team points). Use coins to bet on matches. <strong>Win:</strong> coins convert to points, boosting your rank. <strong>Lose:</strong> coins are gone. Start with 100 coins!
+            <div style="background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);padding:16px;border-radius:10px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div>
+                  <p style="margin:0;color:var(--muted);font-size:0.85rem">💰 Your Coin Balance</p>
+                  <h3 id="betting-coin-balance" style="margin:4px 0 0 0;font-size:2rem;color:#ffd700">0</h3>
+                </div>
+                <div style="text-align:right">
+                  <p style="margin:0;color:#fff;font-size:0.85rem">Total Score: <strong id="betting-total-score">0</strong> pts</p>
+                  <p style="margin:4px 0 0 0;color:var(--muted);font-size:0.75rem">Team: <span id="betting-team-points">0</span> | Bets: <span id="betting-bet-points">0</span></p>
+                </div>
+              </div>
+              <div class="inline-note" style="background:rgba(57,255,20,0.08);border:1px solid rgba(57,255,20,0.2);padding:10px;border-radius:8px;font-size:0.85rem">
+                <strong>💰 How Betting Works:</strong> You earn <strong>coins</strong> by picking winning teams (10% of team points). Use coins to bet on matches. <strong>Win:</strong> coins convert to points, boosting your rank. <strong>Lose:</strong> coins are gone.
+              </div>
             </div>
-            <div class="panel-head secondary"><h3>Upcoming Matches (Next 7 Days)</h3></div>
+            <div class="panel-head secondary"><h3>Upcoming Matches (Next 5)</h3></div>
             <div id="match-list" class="match-list"></div>
           </article>
           

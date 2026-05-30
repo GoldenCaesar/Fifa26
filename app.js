@@ -507,6 +507,9 @@ async function loginByHandle(handle) {
   state.data.currentUser = user.id;
   state.data.lastLogin = new Date().toISOString();
   persistState();
+  
+  // Load user's bets from Supabase
+  await loadBetsFromSupabase(user.id);
 
   const logo = document.getElementById("logo-wrap");
   logo.classList.add("explode");
@@ -761,6 +764,110 @@ async function loadUsersFromSupabase() {
     }
   } catch (err) {
     console.warn('Error loading users from Supabase:', err);
+  }
+}
+
+// ── Bet Sync Functions ────────────────────────────────
+
+async function syncBetToSupabase(bet) {
+  if (!state.supabase) {
+    console.warn('Supabase not connected, cannot sync bet');
+    return;
+  }
+  
+  try {
+    const betData = {
+      id: bet.id,
+      user_id: bet.userId,
+      match_id: bet.matchId,
+      pick: bet.pick,
+      odds: bet.odds,
+      wager: bet.wager,
+      status: bet.status,
+      outcome: bet.outcome,
+      delta: bet.delta || 0,
+      created_at: bet.createdAt,
+      settled_at: bet.settledAt || null
+    };
+    
+    const { error } = await state.supabase
+      .from('bets')
+      .upsert(betData, { onConflict: 'id' });
+    
+    if (error) {
+      console.error('Failed to sync bet to Supabase:', error);
+    } else {
+      console.log(`✓ Synced bet ${bet.id} to Supabase`);
+    }
+  } catch (err) {
+    console.warn('Bet sync error:', err);
+  }
+}
+
+async function deleteBetFromSupabase(betId) {
+  if (!state.supabase) return;
+  
+  try {
+    const { error } = await state.supabase
+      .from('bets')
+      .delete()
+      .eq('id', betId);
+    
+    if (error) {
+      console.warn('Failed to delete bet from Supabase:', error);
+    } else {
+      console.log(`✓ Deleted bet ${betId} from Supabase`);
+    }
+  } catch (err) {
+    console.warn('Bet deletion error:', err);
+  }
+}
+
+async function loadBetsFromSupabase(userId) {
+  if (!state.supabase) {
+    console.warn('Supabase not connected, cannot load bets');
+    return;
+  }
+  
+  try {
+    const { data: dbBets, error } = await state.supabase
+      .from('bets')
+      .select('*')
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.warn('Failed to load bets from Supabase:', error);
+      return;
+    }
+    
+    if (dbBets && dbBets.length > 0) {
+      console.log(`Loading ${dbBets.length} bets for user ${userId} from Supabase...`);
+      
+      // Remove existing bets for this user from local state
+      state.data.bets = state.data.bets.filter(b => b.userId !== userId);
+      
+      // Add bets from database
+      dbBets.forEach(dbBet => {
+        state.data.bets.push({
+          id: dbBet.id,
+          userId: dbBet.user_id,
+          matchId: dbBet.match_id,
+          pick: dbBet.pick,
+          odds: dbBet.odds,
+          wager: dbBet.wager,
+          status: dbBet.status,
+          outcome: dbBet.outcome,
+          delta: dbBet.delta || 0,
+          createdAt: dbBet.created_at,
+          settledAt: dbBet.settled_at
+        });
+      });
+      
+      persistState();
+      console.log(`✓ Loaded ${dbBets.length} bets from Supabase`);
+    }
+  } catch (err) {
+    console.warn('Error loading bets from Supabase:', err);
   }
 }
 
@@ -1375,6 +1482,7 @@ function settleYesterdayBets(todayYmd) {
         bet.status = "settled";
         bet.outcome = "loss";
         bet.delta = -bet.wager;
+        bet.settledAt = new Date().toISOString();
       } else if (chosenWon) {
         const profit = Math.max(bet.wager * bet.odds, bet.wager * 0.1);
         const totalReturn = bet.wager + profit;
@@ -1384,11 +1492,19 @@ function settleYesterdayBets(todayYmd) {
         bet.status = "settled";
         bet.outcome = "win";
         bet.delta = totalReturn;
+        bet.settledAt = new Date().toISOString();
+        
+        // Sync updated user to Supabase
+        syncUserToSupabase(user);
       } else {
         bet.status = "settled";
         bet.outcome = "loss";
         bet.delta = -bet.wager;
+        bet.settledAt = new Date().toISOString();
       }
+      
+      // Sync settled bet to Supabase
+      syncBetToSupabase(bet);
     });
 }
 
@@ -1852,6 +1968,16 @@ function renderRankings() {
   if (!user) return;
 
   document.getElementById("total-score").textContent = user.totalScore.toLocaleString();
+  
+  // Update coin balance and points breakdown
+  const coinBalanceEl = document.getElementById("rankings-coin-balance");
+  const teamPointsEl = document.getElementById("rankings-team-points");
+  const betPointsEl = document.getElementById("rankings-bet-points");
+  
+  if (coinBalanceEl) coinBalanceEl.textContent = Math.floor(user.balance).toLocaleString();
+  if (teamPointsEl) teamPointsEl.textContent = (user.teamPoints || 0).toLocaleString();
+  if (betPointsEl) betPointsEl.textContent = (user.betPoints || 0).toLocaleString();
+  
   const host = document.getElementById("team-cards");
   host.innerHTML = "";
 
@@ -1936,6 +2062,17 @@ function renderMatches() {
   const user = getCurrentUser();
   const host = document.getElementById("match-list");
   host.innerHTML = "";
+  
+  // Update coin balance and score displays
+  const coinBalanceEl = document.getElementById("betting-coin-balance");
+  const totalScoreEl = document.getElementById("betting-total-score");
+  const teamPointsEl = document.getElementById("betting-team-points");
+  const betPointsEl = document.getElementById("betting-bet-points");
+  
+  if (coinBalanceEl) coinBalanceEl.textContent = Math.floor(user.balance).toLocaleString();
+  if (totalScoreEl) totalScoreEl.textContent = user.totalScore.toLocaleString();
+  if (teamPointsEl) teamPointsEl.textContent = (user.teamPoints || 0).toLocaleString();
+  if (betPointsEl) betPointsEl.textContent = (user.betPoints || 0).toLocaleString();
 
   const now = new Date();
   const todayYmd = toYmd(now, state.config.timezone);
@@ -2105,7 +2242,7 @@ function placeBet(match, pick, odds, wagerAmount) {
 
   user.balance -= wagerAmount;
 
-  state.data.bets.push({
+  const newBet = {
     id: `bet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     userId: user.id,
     matchId: match.id,
@@ -2116,12 +2253,17 @@ function placeBet(match, pick, odds, wagerAmount) {
     outcome: "pending",
     delta: 0,
     createdAt: new Date().toISOString()
-  });
+  };
+  
+  state.data.bets.push(newBet);
 
   // Total score doesn't change when placing bet, only when it settles
   // (No recalculation needed here)
 
   persistState();
+  syncUserToSupabase(user); // Sync updated balance
+  syncBetToSupabase(newBet); // Sync bet to database
+  
   publishRealtime("bet:placed", { userId: user.id, matchId: match.id });
   renderMatches();
   renderCommunity();
@@ -2155,6 +2297,9 @@ function deleteBet(betId) {
   // (No recalculation needed)
 
   persistState();
+  syncUserToSupabase(user); // Sync updated balance
+  deleteBetFromSupabase(betId); // Remove bet from database
+  
   publishRealtime("bet:cancelled", { userId: user.id, matchId: bet.matchId });
   renderMatches();
   renderCommunity();
