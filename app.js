@@ -314,8 +314,11 @@ async function loginByHandle(handle) {
         
         // Load user from database into local state
         user = createNewUser(dbUser.handle);
-        user.balance = dbUser.balance || 2450;
+        user.balance = dbUser.balance || 100;
         user.totalScore = dbUser.total_score || 0;
+        user.teamPoints = dbUser.team_points || 0;
+        user.betPoints = dbUser.bet_points || 0;
+        user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams || 0;
         
         // Preserve rankings from database (handle null/undefined)
         if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
@@ -325,7 +328,7 @@ async function loginByHandle(handle) {
         }
         
         // Smart detection: if user has points OR non-default balance OR has rankings, they must have picked teams
-        const hasPlayedBefore = user.totalScore > 0 || user.balance !== 2450 || user.rankings.length > 0;
+        const hasPlayedBefore = user.totalScore > 0 || user.balance !== 100 || user.rankings.length > 0;
         user.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
         
         // Update database if we auto-locked based on activity
@@ -433,7 +436,7 @@ function renderAdminPanel() {
     row.innerHTML = `
       <div class="admin-user-info">
         <span class="admin-user-handle">${user.handle}</span>
-        <span class="admin-user-meta">${user.totalScore.toLocaleString()} pts &bull; ${Math.floor(user.balance)} bal</span>
+        <span class="admin-user-meta">${user.totalScore.toLocaleString()} pts &bull; ${Math.floor(user.balance)} coins</span>
       </div>
       <button class="btn btn-danger admin-delete-btn" data-userid="${user.id}" ${isCurrentAdmin ? "disabled title='Cannot delete the currently logged-in admin'" : ""}>
         <i class="material-symbols-outlined">delete</i>
@@ -500,8 +503,11 @@ async function syncUserToSupabase(user) {
     }
     
     const userData = {
-      balance: user.balance || 2450,
+      balance: user.balance || 100,
       total_score: user.totalScore || 0,
+      team_points: user.teamPoints || 0,
+      bet_points: user.betPoints || 0,
+      coins_earned_from_teams: user.coinsEarnedFromTeams || 0,
       picks_locked: user.picksLocked === true,
       rankings: user.rankings || []
     };
@@ -585,8 +591,11 @@ async function loadUsersFromSupabase() {
         if (!existingUser && dbUser.handle.toLowerCase() !== 'admin') {
           // Create user from Supabase data
           const newUser = createNewUser(dbUser.handle);
-          newUser.balance = dbUser.balance || 2450;
+          newUser.balance = dbUser.balance || 100;
           newUser.totalScore = dbUser.total_score || 0;
+          newUser.teamPoints = dbUser.team_points || 0;
+          newUser.betPoints = dbUser.bet_points || 0;
+          newUser.coinsEarnedFromTeams = dbUser.coins_earned_from_teams || 0;
           
           // Preserve rankings from database
           if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
@@ -596,7 +605,7 @@ async function loadUsersFromSupabase() {
           }
           
           // Smart detection: if user has points OR non-default balance OR has rankings, they must have picked teams
-          const hasPlayedBefore = newUser.totalScore > 0 || newUser.balance !== 2450 || newUser.rankings.length > 0;
+          const hasPlayedBefore = newUser.totalScore > 0 || newUser.balance !== 100 || newUser.rankings.length > 0;
           newUser.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
           
           state.data.users.push(newUser);
@@ -659,6 +668,11 @@ function syncUserRankingsWithTeamStats() {
   state.data.users.forEach(user => {
     if (!user.rankings || user.rankings.length === 0) return;
     
+    // Initialize new fields if missing (for existing users)
+    if (user.teamPoints === undefined) user.teamPoints = 0;
+    if (user.betPoints === undefined) user.betPoints = 0;
+    if (user.coinsEarnedFromTeams === undefined) user.coinsEarnedFromTeams = 0;
+    
     user.rankings.forEach(ranking => {
       const teamStats = state.data.teamStats[ranking.team];
       if (teamStats) {
@@ -667,8 +681,20 @@ function syncUserRankingsWithTeamStats() {
       }
     });
     
-    // Calculate score from real match results only (no fake balance bonus)
-    user.totalScore = recalcScore(user);
+    // Calculate team points from rankings
+    const newTeamPoints = recalcScore(user);
+    
+    // Calculate coins earned from teams (10% of team points)
+    const newCoinsFromTeams = Math.floor(newTeamPoints * 0.1);
+    const coinsDifference = newCoinsFromTeams - user.coinsEarnedFromTeams;
+    
+    // Add new coins to balance
+    user.balance += coinsDifference;
+    user.coinsEarnedFromTeams = newCoinsFromTeams;
+    user.teamPoints = newTeamPoints;
+    
+    // Total score = team points + bet points
+    user.totalScore = user.teamPoints + user.betPoints;
     
     // Sync updated scores to database
     if (state.supabase && user.handle !== 'admin') {
@@ -764,6 +790,39 @@ function enterApp() {
     liveStandingsBtn.onclick = () => {
       window.open('https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/standings', '_blank');
     };
+  }
+  
+  // Wire up How to Play button
+  const howToPlayBtn = document.getElementById("how-to-play-btn");
+  const howToPlayOverlay = document.getElementById("how-to-play-overlay");
+  const closeOverlayBtn = document.getElementById("close-overlay-btn");
+  
+  if (howToPlayBtn && howToPlayOverlay) {
+    // Open overlay
+    howToPlayBtn.onclick = () => {
+      howToPlayOverlay.style.display = "flex";
+    };
+    
+    // Close overlay via close button
+    if (closeOverlayBtn) {
+      closeOverlayBtn.onclick = () => {
+        howToPlayOverlay.style.display = "none";
+      };
+    }
+    
+    // Close overlay when clicking outside the content
+    howToPlayOverlay.onclick = (e) => {
+      if (e.target === howToPlayOverlay) {
+        howToPlayOverlay.style.display = "none";
+      }
+    };
+    
+    // Close overlay with Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && howToPlayOverlay.style.display === "flex") {
+        howToPlayOverlay.style.display = "none";
+      }
+    });
   }
   
   // Wire up sign out button
@@ -919,8 +978,12 @@ function lockUserPicks() {
   }));
   user.picksLocked = true;
   user.pendingPicks = [];
-  // Score starts at 0 - only real match results add points
+  // Initialize scoring fields
+  user.teamPoints = 0;
+  user.betPoints = 0;
   user.totalScore = 0;
+  user.balance = 100;
+  user.coinsEarnedFromTeams = 0;
   
   // Record initial score for this user
   const todayKey = toYmd(new Date(), state.config.timezone);
@@ -1120,18 +1183,18 @@ function settleYesterdayBets(todayYmd) {
         bet.delta = -bet.wager;
       } else if (chosenWon) {
         const profit = Math.max(bet.wager * bet.odds, bet.wager * 0.1);
-        const payout = bet.wager + profit;
-        user.balance += payout;
+        const totalReturn = bet.wager + profit;
+        // Winning bets convert coins to points (not back to balance)
+        user.betPoints += totalReturn;
+        user.totalScore = user.teamPoints + user.betPoints;
         bet.status = "settled";
         bet.outcome = "win";
-        bet.delta = payout;
+        bet.delta = totalReturn;
       } else {
         bet.status = "settled";
         bet.outcome = "loss";
         bet.delta = -bet.wager;
       }
-
-      user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
     });
 }
 
@@ -1654,7 +1717,7 @@ function renderPlayers() {
             <span style="color:var(--muted)">&bull;</span>
             <span>${teamPoints.toLocaleString()} from Teams</span>
             <span style="color:var(--muted)">&bull;</span>
-            <span>${Math.floor(player.balance).toLocaleString()} Balance</span>
+            <span>${Math.floor(player.balance).toLocaleString()} Coins</span>
           </div>
         </div>
       </div>
@@ -1756,8 +1819,8 @@ function renderMatches() {
         wager.className = "wager-row";
         wager.innerHTML = `
           <div>
-            <label>Wager Points</label>
-            <input id="${betInputId}" type="number" min="1" max="${Math.floor(user.balance)}" value="100">
+            <label>Wager Coins</label>
+            <input id="${betInputId}" type="number" min="1" max="${Math.floor(user.balance)}" value="10">
           </div>
           <button class="btn btn-primary">Place Bet</button>
         `;
@@ -1786,12 +1849,12 @@ function renderMatches() {
         function updateProfit() {
           const value = Number(input.value || 0);
           if (!selected || value <= 0) {
-            profit.textContent = "Potential Profit: +0 points (Total Return: +0)";
+            profit.textContent = "Wager coins to earn points";
             return;
           }
           const p = Math.max(value * selected.odds, value * 0.1);
           const totalReturn = value + p;
-          profit.textContent = `Potential Profit: +${Math.round(p)} points (Total Return: ${Math.round(totalReturn)} if win)`;
+          profit.textContent = `Win: +${Math.round(totalReturn)} points to your score (${value} coins × ${selected.odds.toFixed(2)} odds)`;
         }
 
         wager.querySelector("button").addEventListener("click", () => {
@@ -1809,7 +1872,7 @@ function renderMatches() {
             return;
           }
           if (wagerAmount > user.balance) {
-            alert("You cannot wager more points than your current balance.");
+            alert("You cannot wager more coins than your current balance.");
             return;
           }
           placeBet(match, selected.pick, selected.odds, wagerAmount);
@@ -1865,7 +1928,8 @@ function placeBet(match, pick, odds, wagerAmount) {
     createdAt: new Date().toISOString()
   });
 
-  user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+  // Total score doesn't change when placing bet, only when it settles
+  // (No recalculation needed here)
 
   persistState();
   publishRealtime("bet:placed", { userId: user.id, matchId: match.id });
@@ -1897,8 +1961,8 @@ function deleteBet(betId) {
   // Remove the bet
   state.data.bets.splice(betIndex, 1);
 
-  // Recalculate score
-  user.totalScore = recalcScore(user) + Math.floor(user.balance / 10);
+  // Total score doesn't change when canceling bet
+  // (No recalculation needed)
 
   persistState();
   publishRealtime("bet:cancelled", { userId: user.id, matchId: bet.matchId });
@@ -1981,11 +2045,11 @@ function renderHistory() {
     const versus = match ? `${match.home} vs ${match.away}` : "Unknown match";
 
     let result = "Pending";
-    if (bet.outcome === "win") result = `+${Math.round(bet.delta)} points`;
-    if (bet.outcome === "loss") result = `${Math.round(bet.delta)} points`;
+    if (bet.outcome === "win") result = `+${Math.round(bet.delta)} points earned`;
+    if (bet.outcome === "loss") result = `-${bet.wager} coins lost`;
 
     const textSpan = document.createElement("span");
-    textSpan.textContent = `Bet ${bet.wager} points on ${bet.pick} in ${versus} -> Result: ${result}`;
+    textSpan.textContent = `Wagered ${bet.wager} coins on ${bet.pick} in ${versus} → ${result}`;
     row.appendChild(textSpan);
     
     // Add delete button for active bets if match is not today
@@ -1994,9 +2058,9 @@ function renderHistory() {
       deleteBtn.className = "btn btn-danger";
       deleteBtn.style.cssText = "padding:4px 12px;font-size:12px;margin-left:10px";
       deleteBtn.innerHTML = '<i class="material-symbols-outlined" style="font-size:16px">delete</i> Cancel Bet';
-      deleteBtn.title = "Cancel this bet and refund your points";
+      deleteBtn.title = "Cancel this bet and refund your coins";
       deleteBtn.addEventListener("click", () => {
-        if (confirm(`Cancel bet of ${bet.wager} points on ${bet.pick}? Your points will be refunded.`)) {
+        if (confirm(`Cancel bet of ${bet.wager} coins on ${bet.pick}? Your coins will be refunded.`)) {
           deleteBet(bet.id);
         }
       });
@@ -2568,8 +2632,11 @@ function createUser(handle) {
   return {
     id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     handle,
-    balance: 2450,
-    totalScore: 2450,
+    balance: 100,
+    teamPoints: 0,
+    betPoints: 0,
+    totalScore: 0,
+    coinsEarnedFromTeams: 0,
     picksLocked: true,
     pendingPicks: [],
     rankings: [0, 1, 2, 3, 4].map((idx) => ({
@@ -2587,8 +2654,11 @@ function createNewUser(handle) {
   return {
     id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     handle,
-    balance: 2450,
+    balance: 100,
+    teamPoints: 0,
+    betPoints: 0,
     totalScore: 0,
+    coinsEarnedFromTeams: 0,
     picksLocked: false,
     pendingPicks: [],
     rankings: []

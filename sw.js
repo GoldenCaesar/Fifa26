@@ -1,13 +1,13 @@
-const APP_CACHE = "family-clash-shell-v13";
-const DATA_CACHE = "family-clash-data-v13";
+const APP_CACHE = "miller-clash-shell-v1";
+const DATA_CACHE = "miller-clash-data-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.css",
   "./app.js",
+  "./app.config.js",
   "./manifest.webmanifest",
-  "./assets/icons/icon-192.svg",
-  "./assets/icons/icon-512.svg"
+  "./demicube_icon.ico"
 ];
 
 self.addEventListener("install", (event) => {

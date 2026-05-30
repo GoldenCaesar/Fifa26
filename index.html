@@ -126,6 +126,10 @@
         <div class="brand"><i class="material-symbols-outlined">sports_soccer</i><h1>Miller Family Clash 2026</h1></div>
         <div class="top-bar-right">
           <span id="top-bar-admin-badge" class="admin-badge" style="display:none"><i class="material-symbols-outlined">admin_panel_settings</i> Admin</span>
+          <button id="how-to-play-btn" class="btn btn-secondary" title="Learn how to play" style="margin-right:10px">
+            <i class="material-symbols-outlined">help</i>
+            <span>How to Play</span>
+          </button>
           <button id="live-standings-btn" class="btn btn-secondary" title="View FIFA official standings" style="margin-right:10px">
             <i class="material-symbols-outlined">emoji_events</i>
             <span>Live Standings</span>
@@ -214,6 +218,9 @@
 
         <section id="view-standings" class="view" data-view="standings">
           <article class="panel">
+            <div class="inline-note" style="background:rgba(57,255,20,0.08);border:1px solid rgba(57,255,20,0.2);padding:12px;border-radius:10px;margin-bottom:16px">
+              <strong>💰 How Betting Works:</strong> You earn <strong>coins</strong> by picking winning teams (10% of team points). Use coins to bet on matches. <strong>Win:</strong> coins convert to points, boosting your rank. <strong>Lose:</strong> coins are gone. Start with 100 coins!
+            </div>
             <div class="panel-head secondary"><h3>Upcoming Matches (Next 7 Days)</h3></div>
             <div id="match-list" class="match-list"></div>
           </article>
@@ -288,6 +295,129 @@
         <span id="supabase-status">Supabase: Disconnected</span>
       </footer>
     </section>
+
+    <!-- How to Play Overlay -->
+    <div id="how-to-play-overlay" class="overlay" style="display:none">
+      <div class="overlay-content">
+        <div class="overlay-header">
+          <h2><i class="material-symbols-outlined">sports_soccer</i> How to Play Miller Family Clash 2026</h2>
+          <button id="close-overlay-btn" class="close-overlay-btn" title="Close">
+            <i class="material-symbols-outlined">close</i>
+          </button>
+        </div>
+        <div class="overlay-body">
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">flag</i> Welcome to the Game!</h3>
+            <p>Miller Family Clash 2026 is a fantasy competition for the FIFA World Cup. Compete with your family by picking winning teams and betting on matches!</p>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">groups</i> Step 1: Pick Your 5 Teams</h3>
+            <p>When you first join, you'll select <strong>5 teams</strong> in ranked order (Rank 1 to Rank 5). Choose wisely — these picks are <strong>permanent</strong> and cannot be changed once locked!</p>
+            <ul>
+              <li><strong>Rank 1</strong> = Your top pick (highest point multiplier)</li>
+              <li><strong>Rank 5</strong> = Your safest pick (lowest point multiplier)</li>
+            </ul>
+            <p class="inline-note">💡 Strategy: Balance risky favorites with safer bets!</p>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">calculate</i> Step 2: Earn Team Points</h3>
+            <p>Your 5 teams earn <strong>Team Points</strong> based on their World Cup performance:</p>
+            <div class="formula-box">
+              <strong>Team Points Formula:</strong><br>
+              For each team: <code>Goals Scored × (Wins + Rank Bonus)</code><br>
+              Your total = sum of all 5 teams
+            </div>
+            <ul>
+              <li><strong>Goals:</strong> Every goal your team scores counts</li>
+              <li><strong>Wins:</strong> Each match win multiplies the impact</li>
+              <li><strong>Rank Bonus:</strong> Higher ranked teams get bigger multipliers (Rank 1 = 5, Rank 5 = 1)</li>
+            </ul>
+            <p><strong>Example:</strong> If your Rank 1 team scores 10 goals and wins 4 matches:<br>
+            <code>10 × (4 + 5) = 90 team points</code></p>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">toll</i> Step 3: Earn Coins from Team Performance</h3>
+            <p>Every day at midnight (PST), you automatically earn <strong>coins</strong> based on your team performance:</p>
+            <div class="formula-box">
+              <strong>Coins Earned:</strong><br>
+              <code>10% of your Team Points</code>
+            </div>
+            <ul>
+              <li>You start with <strong>100 coins</strong></li>
+              <li>More team points = more coins earned</li>
+              <li><strong>Coins are only for betting</strong> — they don't count toward your rank</li>
+            </ul>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">casino</i> Step 4: Bet on Matches (Optional)</h3>
+            <p>Use your coins to bet on any upcoming World Cup match! Go to the <strong>Bets tab</strong> to place wagers:</p>
+            <ul>
+              <li><strong>Pick a team</strong> you think will win</li>
+              <li><strong>Wager coins</strong> (default: 10 coins, adjust as you like)</li>
+              <li><strong>If you win:</strong> Your wagered coins + profit <strong>convert to Bet Points</strong> and boost your rank! 🎉</li>
+              <li><strong>If you lose:</strong> You just lose the coins (no points lost)</li>
+            </ul>
+            <p class="inline-note">⚠️ You can cancel/delete bets anytime before the match day starts</p>
+            <p><strong>Odds Example:</strong> Bet 50 coins on Mexico at 2.5x odds:<br>
+            • <strong>Win:</strong> 50 + (50 × 1.5) = <strong>125 points</strong> added to your total!<br>
+            • <strong>Lose:</strong> -50 coins (but your team points stay safe)</p>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">emoji_events</i> Step 5: Your Total Score & Ranking</h3>
+            <p>Your leaderboard position is determined by your <strong>Total Score</strong>:</p>
+            <div class="formula-box">
+              <strong>Total Score = Team Points + Bet Points</strong>
+            </div>
+            <ul>
+              <li><strong>Team Points:</strong> Earned from your 5 team picks</li>
+              <li><strong>Bet Points:</strong> Earned from successful bets</li>
+            </ul>
+            <p>Check the <strong>Players tab</strong> to see how you stack up against everyone!</p>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">explore</i> Navigating the App</h3>
+            <ul>
+              <li><strong>Home:</strong> See upcoming matches, group standings, bracket, and the leaderboard chart</li>
+              <li><strong>My Rankings:</strong> View your 5 team picks and their detailed performance stats</li>
+              <li><strong>Players:</strong> Compare all players, their teams, and scores</li>
+              <li><strong>Bets:</strong> Place bets on upcoming matches and view your bet history</li>
+              <li><strong>Settings:</strong> Adjust preferences (coming soon)</li>
+            </ul>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">schedule</i> Important Dates</h3>
+            <ul>
+              <li><strong>Tournament Start:</strong> June 11, 2026</li>
+              <li><strong>Final Match:</strong> July 19, 2026</li>
+              <li><strong>Daily Refresh:</strong> Match data updates automatically at 12:00 AM PST</li>
+            </ul>
+          </section>
+
+          <section class="help-section">
+            <h3><i class="material-symbols-outlined">lightbulb</i> Pro Tips</h3>
+            <ul>
+              <li>🔥 <strong>Diversify:</strong> Pick teams from different groups to maximize scoring opportunities</li>
+              <li>💰 <strong>Bet Smart:</strong> Save coins for high-confidence bets with good odds</li>
+              <li>📊 <strong>Watch Group Standings:</strong> Track which teams are advancing to knockout rounds</li>
+              <li>⏰ <strong>Bet Early:</strong> Place bets before match day to lock in odds</li>
+              <li>🎯 <strong>Balance Risk:</strong> Even with bad team picks, smart betting can keep you competitive!</li>
+            </ul>
+          </section>
+
+          <section class="help-section" style="background:#1a3a1a;border-left:4px solid #4caf50">
+            <h3><i class="material-symbols-outlined">celebration</i> Good Luck!</h3>
+            <p>May the best strategist win the Miller Family Clash 2026! ⚽🏆</p>
+          </section>
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 </html>
