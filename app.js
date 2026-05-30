@@ -151,18 +151,61 @@ function getMatchGroup(home, away) {
 }
 
 // Check and canonicalize any stored match entries in state to prevent duplicates on load
+// and sanitize all loaded user rankings & picks so existing accounts don't suffer mismatch bugs
 function sanitizeStateMatches() {
-  if (state && state.data && state.data.matches) {
+  if (state && state.data) {
     let changed = false;
-    state.data.matches.forEach(m => {
-      const canonicalHome = getCanonicalTeamName(m.home);
-      const canonicalAway = getCanonicalTeamName(m.away);
-      if (m.home !== canonicalHome || m.away !== canonicalAway) {
-        m.home = canonicalHome;
-        m.away = canonicalAway;
-        changed = true;
-      }
-    });
+    
+    // 1. Sanitize Matches
+    if (state.data.matches) {
+      state.data.matches.forEach(m => {
+        const canonicalHome = getCanonicalTeamName(m.home);
+        const canonicalAway = getCanonicalTeamName(m.away);
+        if (m.home !== canonicalHome || m.away !== canonicalAway) {
+          m.home = canonicalHome;
+          m.away = canonicalAway;
+          changed = true;
+        }
+      });
+    }
+
+    // 2. Sanitize User Rankings, pending picks, and Bets
+    if (state.data.users) {
+      state.data.users.forEach(user => {
+        if (Array.isArray(user.rankings)) {
+          user.rankings.forEach(r => {
+            const canonicalTeam = getCanonicalTeamName(r.team);
+            if (r.team !== canonicalTeam) {
+              r.team = canonicalTeam;
+              changed = true;
+            }
+          });
+        }
+        if (Array.isArray(user.pendingPicks)) {
+          user.pendingPicks = user.pendingPicks.map(p => {
+            const canonicalTeam = getCanonicalTeamName(p);
+            if (p !== canonicalTeam) {
+              changed = true;
+            }
+            return canonicalTeam;
+          });
+        }
+      });
+    }
+
+    // 3. Sanitize Active Bets list
+    if (state.data.bets) {
+      state.data.bets.forEach(b => {
+        if (b.pick) {
+          const canonicalPick = getCanonicalTeamName(b.pick);
+          if (b.pick !== canonicalPick) {
+            b.pick = canonicalPick;
+            changed = true;
+          }
+        }
+      });
+    }
+
     if (changed) {
       persistState();
     }
