@@ -36,7 +36,7 @@ const GROUPS = {
 
 // FIFA World Cup 2026 - Official Groups (48 teams, 12 groups)
 // Based on actual tournament draw from Google search results
-const WC_2026_GROUPS = {
+let WC_2026_GROUPS = {
   "A": ["Mexico", "South Africa", "South Korea", "Czechia"],
   "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
   "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
@@ -52,7 +52,7 @@ const WC_2026_GROUPS = {
 };
 
 // Full FIFA World Cup 2026 team roster (alphabetical)
-const WC_TEAMS = [
+let WC_TEAMS = [
   "Algeria", "Argentina", "Australia", "Austria",
   "Belgium", "Bosnia and Herzegovina", "Brazil",
   "Cameroon", "Canada", "Chile", "Colombia", "Costa Rica", "Croatia", "Czechia",
@@ -724,6 +724,41 @@ async function deleteUserFromSupabase(handle) {
     if (error) console.warn('Supabase user deletion failed:', error);
   } catch (err) {
     console.warn('Supabase delete error:', err);
+  }
+}
+
+// Utility to parse dynamic groups from matches
+function updateDynamicGroupsAndTeams() {
+  const newGroups = {};
+  const teamsSet = new Set();
+  
+  state.data.matches.forEach(m => {
+    teamsSet.add(m.home);
+    teamsSet.add(m.away);
+    
+    // Check if match has group metadata from API (e.g. "Group Stage - Group E")
+    if (m.group && m.group.toLowerCase().includes("group")) {
+      const matchPattern = m.group.match(/Group\s+([A-L])/i);
+      const letter = matchPattern ? matchPattern[1].toUpperCase() : null;
+      if (letter) {
+        if (!newGroups[letter]) newGroups[letter] = new Set();
+        newGroups[letter].add(m.home);
+        newGroups[letter].add(m.away);
+      }
+    }
+  });
+
+  if (Object.keys(newGroups).length > 0) {
+    // Convert sets to arrays
+    const formattedGroups = {};
+    Object.keys(newGroups).sort().forEach(k => {
+      formattedGroups[k] = Array.from(newGroups[k]);
+    });
+    WC_2026_GROUPS = formattedGroups;
+  }
+  
+  if (teamsSet.size > 0) {
+    WC_TEAMS = Array.from(teamsSet).sort();
   }
 }
 
@@ -1484,6 +1519,7 @@ async function loadWorldCupMatchesFromDatabase() {
     if (data && data.length > 0) {
       console.log(`Loaded ${data.length} matches from database`);
       state.data.matches = data.map(convertDbMatchToApp);
+      updateDynamicGroupsAndTeams();
       persistState();
     } else {
       console.warn("No matches in database - using local fallback");
@@ -2826,6 +2862,13 @@ async function fetchMatchesForDay(dayYmd) {
       if (!error && data && data.length > 0) {
         // Convert database format to app format
         matches = data.map(convertDbMatchToApp);
+        
+        // Ensure new matches are added to state and groups get updated
+        if (matches && matches.length > 0) {
+          const newMatchIds = matches.map(m => m.id);
+          state.data.matches = [...state.data.matches.filter(m => !newMatchIds.includes(m.id)), ...matches];
+          updateDynamicGroupsAndTeams();
+        }
       } else {
         // Fallback to mock if no data in database
         matches = generateMockMatches(dayYmd);
@@ -2852,6 +2895,7 @@ function convertDbMatchToApp(dbMatch) {
     time: dbMatch.kickoff_time,
     home: dbMatch.home_team,
     away: dbMatch.away_team,
+    group: dbMatch.tournament_group || null,
     odds: {
       home: Number(dbMatch.odds_home),
       away: Number(dbMatch.odds_away)

@@ -176,7 +176,8 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
       status: "open",
       result_home: null,
       result_away: null,
-      winner: null
+      winner: null,
+      tournament_group: null
     };
   });
 }
@@ -212,7 +213,8 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
       status: "open",
       result_home: null,
       result_away: null,
-      winner: null
+      winner: null,
+      tournament_group: item.league?.round || null
     };
   });
 }
