@@ -64,6 +64,16 @@ let WC_TEAMS = [
 ];
 
 // Normalize a team name for fuzzy matching across standard names and API variants
+// Hash a password using SHA-256 with the handle as a salt so that the same
+// raw password for two different users produces different stored hashes.
+async function hashPassword(handle, rawPassword) {
+  const data = new TextEncoder().encode(handle.toLowerCase() + ":" + rawPassword);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function normalizeTeamName(name) {
   if (!name) return "";
   return name.toLowerCase()
@@ -342,8 +352,13 @@ function wireLogin() {
         passwordInput.focus();
       }
     } else if (awaitingUserPassword) {
-      // Decorative password step for regular users — any input proceeds
-      await loginByHandle(handleInput.value.trim());
+      const pwd = userPasswordInput.value;
+      if (!pwd) {
+        setStatus("login-message", "Please enter a password.");
+        userPasswordInput.focus();
+        return;
+      }
+      await loginByHandle(handleInput.value.trim(), pwd);
     } else {
       const handle = handleInput.value.trim();
       if (!handle) return;
@@ -360,7 +375,7 @@ function wireLogin() {
         userPasswordInput.focus();
         handleInput.disabled = true;
         enterBtn.innerHTML = 'Continue <i class="material-symbols-outlined">arrow_forward</i>';
-        setStatus("login-message", "");
+        setStatus("login-message", "Enter your password, or set one if you're new.");
       }
     }
   };
@@ -595,7 +610,7 @@ function hydrateSettingsForm() {
   }
 }
 
-async function loginByHandle(handle) {
+async function loginByHandle(handle, rawPassword = "") {
   if (!handle) {
     setStatus("login-message", "Enter a handle first.");
     return;
@@ -616,7 +631,16 @@ async function loginByHandle(handle) {
       if (!error && dbUsers && dbUsers.length > 0) {
         const dbUser = dbUsers[0];
         console.log(`Found existing user ${handle} in database:`, dbUser);
-        
+
+        // Verify password if one has been set for this account.
+        if (dbUser.password_hash) {
+          const inputHash = await hashPassword(handle, rawPassword);
+          if (inputHash !== dbUser.password_hash) {
+            setStatus("login-message", "Incorrect password.");
+            return;
+          }
+        }
+
         // Load user from database into local state
         user = createNewUser(dbUser.handle);
         user.dbId = dbUser.id; // Store database UUID
@@ -625,6 +649,12 @@ async function loginByHandle(handle) {
         user.teamPoints = dbUser.team_points ?? 0;
         user.betPoints = dbUser.bet_points ?? 0;
         user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
+
+        // If this account has no password yet (pre-migration), set one now.
+        if (!dbUser.password_hash && rawPassword) {
+          user.passwordHash = await hashPassword(handle, rawPassword);
+          console.log(`Setting password for existing account ${handle} (first login after migration)`);
+        }
         
         // Preserve rankings from database (handle null/undefined)
         if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
@@ -655,10 +685,16 @@ async function loginByHandle(handle) {
 
   if (!user) {
     if (handle.toLowerCase() !== "admin") {
-      const ok = window.confirm(`No account found for ${handle}. Create it now?`);
+      const ok = window.confirm(`No account found for "${handle}". Create it now?`);
       if (!ok) return;
     }
     user = createNewUser(handle);
+
+    // Store the password hash for the new account.
+    if (rawPassword) {
+      user.passwordHash = await hashPassword(handle, rawPassword);
+    }
+
     users.push(user);
     
     console.log(`Created new user: ${handle}`);
@@ -832,6 +868,12 @@ async function syncUserToSupabase(user) {
       picks_locked: user.picksLocked === true,
       rankings: user.rankings || []
     };
+
+    // Only include password_hash when we explicitly have one to avoid
+    // accidentally overwriting an existing hash with null during routine syncs.
+    if (user.passwordHash !== undefined) {
+      userData.password_hash = user.passwordHash;
+    }
     
     console.log(`Syncing user ${user.handle} to Supabase:`, userData);
     
