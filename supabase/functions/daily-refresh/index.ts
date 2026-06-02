@@ -15,20 +15,20 @@ const TEAM_POOL = [
   "Spain", "Portugal", "Italy", "USA", "Mexico", "Croatia"
 ];
 
-// FIFA World Cup 2026 - Official Groups (48 teams, 12 groups)
+// FIFA World Cup 2026 - Official Draw Groups (48 teams, 12 groups)
 const WC_2026_GROUPS = {
   "A": ["Mexico", "South Africa", "South Korea", "Czechia"],
   "B": ["Canada", "Bosnia and Herzegovina", "Qatar", "Switzerland"],
   "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
   "D": ["USA", "Paraguay", "Australia", "Türkiye"],
-  "E": ["England", "Netherlands", "Tunisia", "Costa Rica"],
-  "F": ["France", "Denmark", "Saudi Arabia", "Peru"],
-  "G": ["Spain", "Croatia", "Iran", "Jamaica"],
-  "H": ["Argentina", "Poland", "Ukraine", "Wales"],
-  "I": ["Portugal", "Belgium", "Senegal", "Japan"],
-  "J": ["Germany", "Italy", "Colombia", "Ecuador"],
-  "K": ["Uruguay", "Norway", "Algeria", "Panama"],
-  "L": ["Chile", "Ghana", "Serbia", "Honduras"]
+  "E": ["Germany", "Curaçao", "Côte d'Ivoire", "Ecuador"],
+  "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
+  "G": ["Belgium", "Egypt", "Iran", "New Zealand"],
+  "H": ["Spain", "Cape Verde", "Saudi Arabia", "Uruguay"],
+  "I": ["France", "Senegal", "Iraq", "Norway"],
+  "J": ["Argentina", "Algeria", "Austria", "Jordan"],
+  "K": ["Portugal", "DR Congo", "Uzbekistan", "Colombia"],
+  "L": ["England", "Croatia", "Ghana", "Panama"]
 };
 
 const corsHeaders = {
@@ -98,11 +98,8 @@ serve(async (req) => {
       });
     }
 
-    // Clear existing matches and insert fresh data
-    await supabase.from("matches").delete().neq("id", "");
-    
-    // Insert all matches
-    const { error } = await supabase.from("matches").insert(allMatches);
+    // Upsert matches without deleting them, preserving existing bets and records!
+    const { error } = await supabase.from("matches").upsert(allMatches, { onConflict: "id" });
     if (error) {
       console.error("Database insert error:", error);
       return new Response(JSON.stringify({ 

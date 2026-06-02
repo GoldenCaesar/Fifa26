@@ -655,8 +655,8 @@ async function loginByHandle(handle) {
   state.data.lastLogin = new Date().toISOString();
   persistState();
   
-  // Load user's bets from Supabase
-  await loadBetsFromSupabase(user.id);
+  // Load all community bets from Supabase (so Community Bets shows everyone's bets)
+  await loadAllBetsFromSupabase();
   
   // Recalculate user balance from bets to fix any sync issues
   // Balance = starting coins + coins from teams - total wagered
@@ -944,10 +944,26 @@ async function loadUsersFromSupabase() {
       const baselineNames = ['Alex', 'Nova', 'Kairo'];
       state.data.users = state.data.users.filter(u => !baselineNames.includes(u.handle));
       
-      // Add all users from Supabase
+      // Add or update all users from Supabase
       dbUsers.forEach(dbUser => {
+        if (dbUser.handle.toLowerCase() === 'admin') return;
+        
         const existingUser = state.data.users.find(u => u.handle === dbUser.handle);
-        if (!existingUser && dbUser.handle.toLowerCase() !== 'admin') {
+        if (existingUser) {
+          // Update existing user with fresh DB values
+          existingUser.dbId = dbUser.id;
+          existingUser.balance = dbUser.balance ?? existingUser.balance;
+          existingUser.totalScore = dbUser.total_score ?? existingUser.totalScore;
+          existingUser.teamPoints = dbUser.team_points ?? existingUser.teamPoints;
+          existingUser.betPoints = dbUser.bet_points ?? existingUser.betPoints;
+          existingUser.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? existingUser.coinsEarnedFromTeams;
+          if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
+            existingUser.rankings = dbUser.rankings;
+          }
+          const hasPlayedBefore = existingUser.totalScore > 0 || existingUser.balance !== 100 || existingUser.rankings.length > 0;
+          existingUser.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
+          console.log(`Updated user ${dbUser.handle} from Supabase (picks: ${existingUser.rankings.length}, locked: ${existingUser.picksLocked}, score: ${existingUser.totalScore})`);
+        } else {
           // Create user from Supabase data
           const newUser = createNewUser(dbUser.handle);
           newUser.dbId = dbUser.id; // Store database UUID
@@ -978,6 +994,72 @@ async function loadUsersFromSupabase() {
     }
   } catch (err) {
     console.warn('Error loading users from Supabase:', err);
+  }
+}
+
+async function loadAllBetsFromSupabase() {
+  if (!state.supabase) return;
+  
+  try {
+    const { data: dbBets, error } = await state.supabase
+      .from('bets')
+      .select('*');
+    
+    if (error) {
+      console.warn('Failed to load all bets from Supabase:', error);
+      return;
+    }
+    
+    if (!dbBets || dbBets.length === 0) {
+      console.log('No bets found in Supabase');
+      return;
+    }
+    
+    console.log(`Loading ${dbBets.length} community bets from Supabase...`);
+    
+    // Build a map from dbId -> localUserId for quick lookup
+    const dbIdToLocalUser = {};
+    state.data.users.forEach(u => {
+      if (u.dbId) dbIdToLocalUser[u.dbId] = u;
+    });
+    
+    // Replace all non-current-user bets with fresh data from DB
+    const currentUserId = state.data.currentUser;
+    // Keep bets for the current user that have no dbId yet (just-placed, not yet persisted)
+    state.data.bets = state.data.bets.filter(b => b.userId === currentUserId && !b.dbId);
+    
+    dbBets.forEach(dbBet => {
+      const localUser = dbIdToLocalUser[dbBet.user_id];
+      if (!localUser) {
+        // User not in local state yet — skip; loadUsersFromSupabase should have populated them
+        console.warn(`Bet ${dbBet.id} references unknown user ${dbBet.user_id}, skipping`);
+        return;
+      }
+      
+      // Don't double-add a bet we already have (matched by dbId)
+      const alreadyLoaded = state.data.bets.find(b => b.dbId === dbBet.id);
+      if (alreadyLoaded) return;
+      
+      state.data.bets.push({
+        id: `bet_${dbBet.id}`,
+        dbId: dbBet.id,
+        userId: localUser.id,
+        matchId: dbBet.match_id,
+        pick: dbBet.pick,
+        odds: dbBet.odds,
+        wager: dbBet.wager,
+        status: dbBet.status,
+        outcome: dbBet.outcome,
+        delta: dbBet.delta || 0,
+        createdAt: dbBet.created_at,
+        settledAt: dbBet.settled_at
+      });
+    });
+    
+    persistState();
+    console.log(`✓ Loaded all community bets. Total in state: ${state.data.bets.length}`);
+  } catch (err) {
+    console.warn('Error loading all bets from Supabase:', err);
   }
 }
 
@@ -2972,12 +3054,16 @@ async function testSupabaseConnection() {
     // Load users from Supabase and merge with local
     await loadUsersFromSupabase();
     
+    // Load all community bets from Supabase
+    await loadAllBetsFromSupabase();
+    
     // Set up realtime channel
     const channel = state.supabase.channel("fc26-live");
     channel
       .on("broadcast", { event: "event" }, (payload) => {
         if (payload?.payload?.origin === state.data.currentUser) return;
-        renderApp();
+        // Refresh community bets and re-render when another user places a bet
+        loadAllBetsFromSupabase().then(() => renderApp());
       })
       .subscribe();
   } catch {
