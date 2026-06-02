@@ -81,7 +81,7 @@ async function derivePasswordHash(rawPassword, saltHex) {
   );
 
   const hashBuffer = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" },
     keyMaterial,
     256
   );
@@ -95,10 +95,16 @@ async function derivePasswordHash(rawPassword, saltHex) {
 }
 
 // Returns true when rawPassword matches a stored "<salt>:<hash>" string.
+// Uses a constant-time XOR loop to prevent timing-side-channel leaks.
 async function verifyPasswordHash(rawPassword, storedHash) {
   const saltHex = storedHash.split(":")[0];
   const derived = await derivePasswordHash(rawPassword, saltHex);
-  return derived === storedHash;
+  if (derived.length !== storedHash.length) return false;
+  let diff = 0;
+  for (let i = 0; i < derived.length; i++) {
+    diff |= derived.charCodeAt(i) ^ storedHash.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 function normalizeTeamName(name) {
@@ -681,6 +687,11 @@ async function loginByHandle(handle, rawPassword = "") {
         user.teamPoints = dbUser.team_points ?? 0;
         user.betPoints = dbUser.bet_points ?? 0;
         user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
+
+        // Keep the hash in local state so it is preserved on subsequent syncs.
+        if (dbUser.password_hash) {
+          user.passwordHash = dbUser.password_hash;
+        }
 
         // If this account has no password yet (pre-migration), set one now and
         // immediately persist it so it isn't lost if the session ends early.
