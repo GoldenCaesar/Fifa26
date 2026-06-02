@@ -657,20 +657,21 @@ async function loginByHandle(handle, rawPassword = "") {
   const users = state.data.users;
   let user = users.find((entry) => entry.handle.toLowerCase() === handle.toLowerCase());
 
-  // If not found locally, check Supabase database
-  if (!user && state.supabase && handle.toLowerCase() !== "admin") {
+  // Always re-fetch from Supabase on login so the DB is the source of truth.
+  // This prevents stale localStorage data (wrong balance, missing bets) when
+  // logging in from a second device or after a midnight data refresh.
+  if (state.supabase && handle.toLowerCase() !== "admin") {
     try {
       const { data: dbUsers, error } = await state.supabase
         .from('users')
         .select('*')
         .ilike('handle', handle)
         .limit(1);
-      
+
       if (!error && dbUsers && dbUsers.length > 0) {
         const dbUser = dbUsers[0];
-        console.log(`Found existing user ${handle} in database:`, dbUser);
 
-        // Verify password if one has been set for this account.
+        // Verify password against the stored hash.
         if (dbUser.password_hash) {
           const ok = await verifyPasswordHash(rawPassword, dbUser.password_hash);
           if (!ok) {
@@ -679,52 +680,53 @@ async function loginByHandle(handle, rawPassword = "") {
           }
         }
 
-        // Load user from database into local state
-        user = createNewUser(dbUser.handle);
-        user.dbId = dbUser.id; // Store database UUID
-        user.balance = dbUser.balance ?? 100;
-        user.totalScore = dbUser.total_score ?? 0;
-        user.teamPoints = dbUser.team_points ?? 0;
-        user.betPoints = dbUser.bet_points ?? 0;
-        user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
-
-        // Keep the hash in local state so it is preserved on subsequent syncs.
-        if (dbUser.password_hash) {
-          user.passwordHash = dbUser.password_hash;
-        }
-
-        // If this account has no password yet (pre-migration), set one now and
-        // immediately persist it so it isn't lost if the session ends early.
-        if (!dbUser.password_hash && rawPassword) {
-          user.passwordHash = await derivePasswordHash(rawPassword);
-          console.log(`Setting password for existing account ${handle} (first login after migration)`);
-          syncUserToSupabase(user).catch(err => console.warn("Failed to save migrated password:", err));
-        }
-        
-        // Preserve rankings from database (handle null/undefined)
-        if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
-          user.rankings = dbUser.rankings;
+        if (user) {
+          // User exists locally — overwrite with fresh DB values.
+          user.dbId = dbUser.id;
+          user.balance = dbUser.balance ?? 100;
+          user.totalScore = dbUser.total_score ?? 0;
+          user.teamPoints = dbUser.team_points ?? 0;
+          user.betPoints = dbUser.bet_points ?? 0;
+          user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
+          if (dbUser.password_hash) user.passwordHash = dbUser.password_hash;
+          if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
+            user.rankings = dbUser.rankings;
+          }
+          const hasPlayedBefore = user.totalScore > 0 || user.balance !== 100 || user.rankings.length > 0;
+          user.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
         } else {
-          user.rankings = [];
+          // Not in local state — create from DB data.
+          user = createNewUser(dbUser.handle);
+          user.dbId = dbUser.id;
+          user.balance = dbUser.balance ?? 100;
+          user.totalScore = dbUser.total_score ?? 0;
+          user.teamPoints = dbUser.team_points ?? 0;
+          user.betPoints = dbUser.bet_points ?? 0;
+          user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
+          if (dbUser.password_hash) user.passwordHash = dbUser.password_hash;
+
+          // First login after password migration — save the new hash.
+          if (!dbUser.password_hash && rawPassword) {
+            user.passwordHash = await derivePasswordHash(rawPassword);
+            syncUserToSupabase(user).catch(err => console.warn("Failed to save migrated password:", err));
+          }
+
+          if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
+            user.rankings = dbUser.rankings;
+          }
+          const hasPlayedBefore = user.totalScore > 0 || user.balance !== 100 || user.rankings.length > 0;
+          user.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
+          if (!dbUser.picks_locked && hasPlayedBefore) {
+            syncUserToSupabase(user).catch(err => console.warn("Failed to update picks_locked:", err));
+          }
+          users.push(user);
         }
-        
-        // Smart detection: if user has points OR non-default balance OR has rankings, they must have picked teams
-        const hasPlayedBefore = user.totalScore > 0 || user.balance !== 100 || user.rankings.length > 0;
-        user.picksLocked = dbUser.picks_locked === true || hasPlayedBefore;
-        
-        // Update database if we auto-locked based on activity
-        if (!dbUser.picks_locked && hasPlayedBefore) {
-          console.log(`Auto-locking picks for ${handle} (has activity: score=${user.totalScore}, balance=${user.balance}, rankings=${user.rankings.length})`);
-          syncUserToSupabase(user).catch(err => console.warn("Failed to update picks_locked:", err));
-        }
-        
-        users.push(user);
+
         persistState();
-        
-        console.log(`Loaded user ${handle} from database - picks_locked: ${user.picksLocked}, rankings count: ${user.rankings.length}`);
+        console.log(`Refreshed user ${handle} from DB — balance: ${user.balance}, picks: ${user.rankings.length}, locked: ${user.picksLocked}`);
       }
     } catch (err) {
-      console.warn("Failed to check database for user:", err);
+      console.warn("Failed to refresh user from Supabase on login:", err);
     }
   }
 

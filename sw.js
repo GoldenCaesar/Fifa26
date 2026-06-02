@@ -1,5 +1,4 @@
-const APP_CACHE = "miller-clash-shell-v2";
-const DATA_CACHE = "miller-clash-data-v2";
+const APP_CACHE = "miller-clash-shell-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -22,7 +21,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== APP_CACHE && key !== DATA_CACHE)
+          .filter((key) => key !== APP_CACHE)
           .map((key) => caches.delete(key))
       )
     )
@@ -34,38 +33,22 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method !== "GET") {
-    return;
-  }
+  if (request.method !== "GET") return;
 
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const network = fetch(request)
-          .then((response) => {
-            caches.open(APP_CACHE).then((cache) => cache.put(request, response.clone()));
-            return response;
-          })
-          .catch(() => cached);
-        return cached || network;
-      })
-    );
-    return;
-  }
+  // Only cache same-origin app shell files.
+  // All external requests (Supabase, sports APIs) bypass the SW entirely so
+  // data is always fresh — this prevents stale bets, balances, and match results.
+  if (url.origin !== self.location.origin) return;
 
+  // Network-first for app shell: always try to fetch the latest version.
+  // Fall back to cache only when the user is offline.
   event.respondWith(
-    caches.open(DATA_CACHE).then((cache) =>
-      cache.match(request).then((cached) => {
-        const network = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              cache.put(request, response.clone());
-            }
-            return response;
-          })
-          .catch(() => cached);
-        return cached || network;
+    fetch(request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(APP_CACHE).then((cache) => cache.put(request, copy));
+        return response;
       })
-    )
+      .catch(() => caches.match(request))
   );
 });
