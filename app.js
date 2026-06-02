@@ -325,8 +325,11 @@ function wireLogin() {
   const handleInput = document.getElementById("handle-input");
   const passwordField = document.getElementById("admin-password-field");
   const passwordInput = document.getElementById("admin-password-input");
+  const userPasswordField = document.getElementById("user-password-field");
+  const userPasswordInput = document.getElementById("user-password-input");
 
   let awaitingAdminPassword = false;
+  let awaitingUserPassword = false;
 
   const execute = async () => {
     if (awaitingAdminPassword) {
@@ -338,8 +341,12 @@ function wireLogin() {
         passwordInput.value = "";
         passwordInput.focus();
       }
+    } else if (awaitingUserPassword) {
+      // Decorative password step for regular users — any input proceeds
+      await loginByHandle(handleInput.value.trim());
     } else {
       const handle = handleInput.value.trim();
+      if (!handle) return;
       if (handle.toLowerCase() === "admin") {
         awaitingAdminPassword = true;
         passwordField.classList.remove("hidden");
@@ -348,7 +355,12 @@ function wireLogin() {
         enterBtn.innerHTML = 'Continue <i class="material-symbols-outlined">lock</i>';
         setStatus("login-message", "Enter the admin password to continue.");
       } else {
-        await loginByHandle(handle);
+        awaitingUserPassword = true;
+        userPasswordField.classList.remove("hidden");
+        userPasswordInput.focus();
+        handleInput.disabled = true;
+        enterBtn.innerHTML = 'Continue <i class="material-symbols-outlined">arrow_forward</i>';
+        setStatus("login-message", "");
       }
     }
   };
@@ -358,6 +370,9 @@ function wireLogin() {
     if (event.key === "Enter") execute();
   });
   passwordInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") execute();
+  });
+  userPasswordInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") execute();
   });
 }
@@ -556,6 +571,11 @@ function wireSettings() {
       if (handleInput) handleInput.value = "";
       if (passwordInput) passwordInput.value = "";
       if (passwordField) passwordField.style.display = "none";
+      
+      const userPasswordInput2 = document.getElementById("user-password-input");
+      const userPasswordField2 = document.getElementById("user-password-field");
+      if (userPasswordInput2) userPasswordInput2.value = "";
+      if (userPasswordField2) userPasswordField2.classList.add("hidden");
       
       alert(`Account "${userHandle}" has been permanently deleted. You can create a new account if you wish.`);
     });
@@ -1453,12 +1473,16 @@ function enterApp() {
       const handleInput = document.getElementById("handle-input");
       const passwordInput = document.getElementById("admin-password-input");
       const passwordField = document.getElementById("admin-password-field");
+      const userPasswordInput = document.getElementById("user-password-input");
+      const userPasswordField = document.getElementById("user-password-field");
       const enterBtn = document.getElementById("enter-button");
       
       handleInput.value = "";
       handleInput.disabled = false;
       passwordInput.value = "";
       passwordField.classList.add("hidden");
+      if (userPasswordInput) userPasswordInput.value = "";
+      if (userPasswordField) userPasswordField.classList.add("hidden");
       enterBtn.innerHTML = 'Enter <i class="material-symbols-outlined">sports_soccer</i>';
       document.getElementById("login-message").textContent = "";
       
