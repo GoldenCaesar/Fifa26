@@ -2798,13 +2798,14 @@ function renderMatches() {
       const [year, month, day] = match.day.split("-");
       const matchDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
+      const pstTime = convertUtcToPst(match.time);
       const groupOrRound = match.group || match.round || "";
 
       card.innerHTML = `
         <div class="bet-head">
           <div>
             <div class="teams-line">${match.home} vs ${match.away}</div>
-            <small>${dateStr} ${match.time} ${groupOrRound ? `• ${groupOrRound}` : ''}</small>
+            <small>${dateStr} ${pstTime} PST ${groupOrRound ? `• ${groupOrRound}` : ''}</small>
           </div>
           <span>${match.status.toUpperCase()}</span>
         </div>
