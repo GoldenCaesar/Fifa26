@@ -1990,6 +1990,48 @@ function lockTodaysMatches(todayYmd) {
   }
 }
 
+function clampBetMultiplier(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
+
+function getBetMultipliers(match) {
+  const homeDecimal = Number(match?.odds?.home);
+  const awayDecimal = Number(match?.odds?.away);
+
+  if (homeDecimal > 1 && awayDecimal > 1) {
+    const homeRawProb = 1 / homeDecimal;
+    const awayRawProb = 1 / awayDecimal;
+    const totalRawProb = homeRawProb + awayRawProb;
+
+    if (totalRawProb > 0) {
+      const homeWinProb = homeRawProb / totalRawProb;
+      const awayWinProb = awayRawProb / totalRawProb;
+
+      return {
+        home: clampBetMultiplier(1 - homeWinProb),
+        away: clampBetMultiplier(1 - awayWinProb)
+      };
+    }
+  }
+
+  // Already-normalized or fallback values.
+  return {
+    home: clampBetMultiplier(homeDecimal),
+    away: clampBetMultiplier(awayDecimal)
+  };
+}
+
+function getBetMultiplierForPick(match, pick, storedOdds) {
+  const multipliers = getBetMultipliers(match);
+
+  if (pick === match?.home) return multipliers.home;
+  if (pick === match?.away) return multipliers.away;
+
+  return clampBetMultiplier(storedOdds);
+}
+
 function settleYesterdayBets(todayYmd) {
   const yesterday = shiftYmd(todayYmd, -1);
   const yesterdayMatches = state.data.matches.filter((match) => match.day === yesterday);
@@ -2023,14 +2065,15 @@ function settleYesterdayBets(todayYmd) {
         bet.delta = -bet.wager;
         bet.settledAt = new Date().toISOString();
       } else if (chosenWon) {
-        const profit = Math.max(bet.wager * bet.odds, bet.wager * 0.1);
-        const totalReturn = bet.wager + profit;
-        // Winning bets convert coins to points (not back to balance)
-        user.betPoints += totalReturn;
+        const multiplier = getBetMultiplierForPick(match, bet.pick, bet.odds);
+        const pointsEarned = Math.round(bet.wager * multiplier);
+
+        // Winning bets add bet points directly to leaderboard score.
+        user.betPoints += pointsEarned;
         user.totalScore = user.teamPoints + user.betPoints;
         bet.status = "settled";
         bet.outcome = "win";
-        bet.delta = totalReturn;
+        bet.delta = pointsEarned;
         bet.settledAt = new Date().toISOString();
         
         // Sync updated user to Supabase
@@ -2787,26 +2830,29 @@ function renderMatches() {
         const oddsRow = document.createElement("div");
         oddsRow.className = "odds-row";
         const betInputId = `wager-${match.id}`;
+        const betMultipliers = getBetMultipliers(match);
+        const homeWinChance = Math.round((1 - betMultipliers.home) * 100);
+        const awayWinChance = Math.round((1 - betMultipliers.away) * 100);
         
         // Determine which team is favored (lower odds = more likely to win)
-        const homeFavored = match.odds.home < match.odds.away;
-        const awayFavored = match.odds.away < match.odds.home;
+        const homeFavored = betMultipliers.home < betMultipliers.away;
+        const awayFavored = betMultipliers.away < betMultipliers.home;
         const homeLabel = homeFavored ? " ⭐ Favored" : (awayFavored ? " Underdog" : "");
         const awayLabel = awayFavored ? " ⭐ Favored" : (homeFavored ? " Underdog" : "");
         
         oddsRow.innerHTML = `
-          <button class="odds-btn" data-pick="${match.home}" data-odds="${match.odds.home}">
-            ${match.home} ${match.odds.home.toFixed(2)}x${homeLabel}
+          <button class="odds-btn" data-pick="${match.home}" data-odds="${betMultipliers.home}">
+            ${match.home} ${betMultipliers.home.toFixed(2)}x${homeLabel} <span style="opacity:0.8">(${homeWinChance}% win)</span>
           </button>
-          <button class="odds-btn" data-pick="${match.away}" data-odds="${match.odds.away}">
-            ${match.away} ${match.odds.away.toFixed(2)}x${awayLabel}
+          <button class="odds-btn" data-pick="${match.away}" data-odds="${betMultipliers.away}">
+            ${match.away} ${betMultipliers.away.toFixed(2)}x${awayLabel} <span style="opacity:0.8">(${awayWinChance}% win)</span>
           </button>
         `;
         
         const oddsExplainer = document.createElement("div");
         oddsExplainer.className = "inline-note";
         oddsExplainer.style.cssText = "font-size:11px;margin-top:4px;text-align:center";
-        oddsExplainer.innerHTML = "<strong>Lower odds</strong> = team favored to win (safer bet, lower payout) &bull; <strong>Higher odds</strong> = underdog (riskier bet, higher payout)";
+        oddsExplainer.innerHTML = "<strong>Odds are 0.00-1.00 payout multipliers</strong> &bull; Lower = safer/favored, higher = riskier/underdog";
 
         const wager = document.createElement("div");
         wager.className = "wager-row";
@@ -2822,7 +2868,10 @@ function renderMatches() {
         profit.className = "profit-line";
         profit.textContent = "Potential Profit: +0 points";
 
-        let selected = existingBet ? { pick: existingBet.pick, odds: existingBet.odds } : null;
+        let selected = existingBet ? {
+          pick: existingBet.pick,
+          odds: getBetMultiplierForPick(match, existingBet.pick, existingBet.odds)
+        } : null;
 
         oddsRow.querySelectorAll(".odds-btn").forEach((button) => {
           // Pre-select the button if user has existing bet
@@ -2858,9 +2907,8 @@ function renderMatches() {
             profit.textContent = "Wager coins to earn points";
             return;
           }
-          const p = Math.max(value * selected.odds, value * 0.1);
-          const totalReturn = value + p;
-          profit.textContent = `Win: +${Math.round(totalReturn)} points to your score (${value} coins × ${selected.odds.toFixed(2)} odds)`;
+          const pointsEarned = Math.round(value * selected.odds);
+          profit.textContent = `Win: +${pointsEarned} points to your score (${value} coins × ${selected.odds.toFixed(2)} odds)`;
         }
         
         // Initialize profit display if there's an existing bet
