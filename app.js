@@ -64,14 +64,41 @@ let WC_TEAMS = [
 ];
 
 // Normalize a team name for fuzzy matching across standard names and API variants
-// Hash a password using SHA-256 with the handle as a salt so that the same
-// raw password for two different users produces different stored hashes.
-async function hashPassword(handle, rawPassword) {
-  const data = new TextEncoder().encode(handle.toLowerCase() + ":" + rawPassword);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+// Derive a PBKDF2 hash for a password. Returns a "<hex-salt>:<hex-hash>" string
+// that is safe to store in the database. Uses a random 16-byte salt by default;
+// pass an existing saltHex to re-derive for verification.
+async function derivePasswordHash(rawPassword, saltHex) {
+  const salt = saltHex
+    ? new Uint8Array(saltHex.match(/.{2}/g).map((b) => parseInt(b, 16)))
+    : crypto.getRandomValues(new Uint8Array(16));
+
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(rawPassword),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+
+  const hashBuffer = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+    keyMaterial,
+    256
+  );
+
+  const toHex = (bytes) =>
+    Array.from(new Uint8Array(bytes))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+  return `${toHex(salt)}:${toHex(hashBuffer)}`;
+}
+
+// Returns true when rawPassword matches a stored "<salt>:<hash>" string.
+async function verifyPasswordHash(rawPassword, storedHash) {
+  const saltHex = storedHash.split(":")[0];
+  const derived = await derivePasswordHash(rawPassword, saltHex);
+  return derived === storedHash;
 }
 
 function normalizeTeamName(name) {
@@ -358,6 +385,11 @@ function wireLogin() {
         userPasswordInput.focus();
         return;
       }
+      if (pwd.length < 8) {
+        setStatus("login-message", "Password must be at least 8 characters.");
+        userPasswordInput.focus();
+        return;
+      }
       await loginByHandle(handleInput.value.trim(), pwd);
     } else {
       const handle = handleInput.value.trim();
@@ -634,8 +666,8 @@ async function loginByHandle(handle, rawPassword = "") {
 
         // Verify password if one has been set for this account.
         if (dbUser.password_hash) {
-          const inputHash = await hashPassword(handle, rawPassword);
-          if (inputHash !== dbUser.password_hash) {
+          const ok = await verifyPasswordHash(rawPassword, dbUser.password_hash);
+          if (!ok) {
             setStatus("login-message", "Incorrect password.");
             return;
           }
@@ -650,10 +682,12 @@ async function loginByHandle(handle, rawPassword = "") {
         user.betPoints = dbUser.bet_points ?? 0;
         user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
 
-        // If this account has no password yet (pre-migration), set one now.
+        // If this account has no password yet (pre-migration), set one now and
+        // immediately persist it so it isn't lost if the session ends early.
         if (!dbUser.password_hash && rawPassword) {
-          user.passwordHash = await hashPassword(handle, rawPassword);
+          user.passwordHash = await derivePasswordHash(rawPassword);
           console.log(`Setting password for existing account ${handle} (first login after migration)`);
+          syncUserToSupabase(user).catch(err => console.warn("Failed to save migrated password:", err));
         }
         
         // Preserve rankings from database (handle null/undefined)
@@ -692,7 +726,7 @@ async function loginByHandle(handle, rawPassword = "") {
 
     // Store the password hash for the new account.
     if (rawPassword) {
-      user.passwordHash = await hashPassword(handle, rawPassword);
+      user.passwordHash = await derivePasswordHash(rawPassword);
     }
 
     users.push(user);
