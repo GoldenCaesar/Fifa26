@@ -2081,6 +2081,34 @@ function renderApp() {
   renderHistory();
 }
 
+function compareUsersForLeaderboard(a, b) {
+  if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+
+  const aHandle = (a.handle || "").toLowerCase();
+  const bHandle = (b.handle || "").toLowerCase();
+  const handleCompare = aHandle.localeCompare(bHandle);
+  if (handleCompare !== 0) return handleCompare;
+
+  return String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+function getDisplayRanks(sortedUsers) {
+  const rankByUserId = new Map();
+  let previousScore = null;
+  let currentRank = 0;
+
+  sortedUsers.forEach((user, index) => {
+    if (previousScore === null || user.totalScore !== previousScore) {
+      currentRank = index + 1;
+      previousScore = user.totalScore;
+    }
+
+    rankByUserId.set(user.id, currentRank);
+  });
+
+  return rankByUserId;
+}
+
 function renderHomeGraph(withBurst) {
   const canvas = document.getElementById("leaderboard-canvas");
   const ctx = canvas.getContext("2d");
@@ -2106,7 +2134,7 @@ function renderHomeGraph(withBurst) {
   }
   
   // Sort users by current score (descending) for Y-axis ordering
-  const sorted = [...users].sort((a, b) => b.totalScore - a.totalScore);
+  const sorted = [...users].sort(compareUsersForLeaderboard);
   
   // Chart dimensions
   const leftMargin = 120;
@@ -2211,9 +2239,15 @@ function renderHomeGraph(withBurst) {
   
   // Update leader badge
   const leader = sorted[0];
-  document.getElementById("leader-badge").textContent = leader
-    ? `${leader.handle.toUpperCase()} LEADS`
-    : "Leader";
+  const tiedForLeadCount = leader
+    ? sorted.filter((u) => u.totalScore === leader.totalScore).length
+    : 0;
+
+  document.getElementById("leader-badge").textContent = !leader
+    ? "Leader"
+    : tiedForLeadCount > 1
+      ? `${tiedForLeadCount} TIED FOR LEAD`
+      : `${leader.handle.toUpperCase()} LEADS`;
 
   if (withBurst || state.data.cache.lastLeader !== leader?.id) {
     launchLeaderEvent(leader ? `${leader.handle} Rank Up!` : "Rank Up!");
@@ -2225,7 +2259,7 @@ function renderHomeGraph(withBurst) {
 
 function renderSimpleBarChart(ctx, users, colors, width, height) {
   // Fallback bar chart when no history data
-  const sorted = [...users].sort((a, b) => b.totalScore - a.totalScore);
+  const sorted = [...users].sort(compareUsersForLeaderboard);
   const maxScore = Math.max(...sorted.map(u => u.totalScore), 100);
   const barWidth = (width - 60) / sorted.length;
   const padding = 15;
@@ -2258,9 +2292,15 @@ function renderSimpleBarChart(ctx, users, colors, width, height) {
   });
   
   const leader = sorted[0];
-  document.getElementById("leader-badge").textContent = leader
-    ? `${leader.handle.toUpperCase()} LEADS`
-    : "Leader";
+  const tiedForLeadCount = leader
+    ? sorted.filter((u) => u.totalScore === leader.totalScore).length
+    : 0;
+
+  document.getElementById("leader-badge").textContent = !leader
+    ? "Leader"
+    : tiedForLeadCount > 1
+      ? `${tiedForLeadCount} TIED FOR LEAD`
+      : `${leader.handle.toUpperCase()} LEADS`;
 }
 
 
@@ -2617,7 +2657,8 @@ function renderPlayers() {
   host.innerHTML = "";
 
   // Get all users sorted by totalScore descending
-  const sortedUsers = [...state.data.users].sort((a, b) => b.totalScore - a.totalScore);
+  const sortedUsers = [...state.data.users].sort(compareUsersForLeaderboard);
+  const rankByUserId = getDisplayRanks(sortedUsers);
 
   if (sortedUsers.length === 0) {
     host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No players yet.</div>';
@@ -2632,14 +2673,15 @@ function renderPlayers() {
     const teamPoints = player.rankings.reduce((sum, team) => sum + (team.goals * (team.wins + team.rankBonus)), 0);
     
     // Determine rank badge color
+    const displayRank = rankByUserId.get(player.id) || index + 1;
     let rankBadgeClass = "";
-    if (index === 0) rankBadgeClass = "rank-gold";
-    else if (index === 1) rankBadgeClass = "rank-silver";
-    else if (index === 2) rankBadgeClass = "rank-bronze";
+    if (displayRank === 1) rankBadgeClass = "rank-gold";
+    else if (displayRank === 2) rankBadgeClass = "rank-silver";
+    else if (displayRank === 3) rankBadgeClass = "rank-bronze";
     
     card.innerHTML = `
       <div class="player-header">
-        <div class="player-rank-badge ${rankBadgeClass}">#${index + 1}</div>
+        <div class="player-rank-badge ${rankBadgeClass}">#${displayRank}</div>
         <div class="player-info">
           <h4>${player.handle}</h4>
           <div class="player-stats">
