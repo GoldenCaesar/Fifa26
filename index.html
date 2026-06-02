@@ -196,9 +196,12 @@
 
         <section id="view-rankings" class="view" data-view="rankings">
           <article class="panel score-hero">
-            <p>YOUR TOTAL SCORE</p>
-            <h2 id="total-score">0</h2>
-            <span>Points Accumulated</span>
+            <canvas id="rankings-score-canvas" class="score-hero-canvas"></canvas>
+            <div class="score-hero-content">
+              <p>YOUR TOTAL SCORE</p>
+              <h2 id="total-score">0</h2>
+              <span>Points Accumulated</span>
+            </div>
           </article>
           <article class="panel" style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);padding:16px;border-radius:10px;margin-bottom:16px">
             <div style="display:flex;align-items:center;justify-content:space-between">

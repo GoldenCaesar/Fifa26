@@ -2351,13 +2351,16 @@ function renderRankings() {
   if (coinBalanceEl) coinBalanceEl.textContent = Math.floor(user.balance).toLocaleString();
   if (teamPointsEl) teamPointsEl.textContent = (user.teamPoints || 0).toLocaleString();
   if (betPointsEl) betPointsEl.textContent = (user.betPoints || 0).toLocaleString();
-  
+
+  // Draw personal score-over-time graph behind the score hero
+  renderPersonalScoreGraph(user);
+
   const host = document.getElementById("team-cards");
   host.innerHTML = "";
 
   user.rankings.forEach((team) => {
+    const rankClass = team.rank === 1 ? "rank1" : team.rank === 2 ? "rank2" : team.rank === 3 ? "rank3" : "";
     const card = document.createElement("div");
-    const rankClass = team.rank === 1 ? "rank1" : team.rank === 5 ? "rank5" : "";
     card.className = `team-card ${rankClass}`;
     card.innerHTML = `
       <div class="meta"><strong>${team.team}</strong><span>Rank ${team.rank} • +${team.rankBonus}</span></div>
@@ -2372,6 +2375,74 @@ function renderRankings() {
     card.classList.add("settle");
     host.appendChild(card);
   });
+}
+
+function renderPersonalScoreGraph(user) {
+  const canvas = document.getElementById("rankings-score-canvas");
+  if (!canvas) return;
+
+  // Size canvas to its rendered dimensions
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width || 400;
+  canvas.height = rect.height || 140;
+
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const scoreHistory = state.data.scoreHistory || {};
+  const days = Object.keys(scoreHistory).sort();
+
+  // Build the user's personal score series, filling gaps with last known value
+  let lastScore = 0;
+  const series = days.map(day => {
+    if (scoreHistory[day][user.id] !== undefined) {
+      lastScore = scoreHistory[day][user.id];
+    }
+    return lastScore;
+  });
+
+  // Always append today's current score as the final point
+  series.push(user.totalScore);
+
+  if (series.length < 2) {
+    // Not enough history — draw a flat baseline
+    series.unshift(0);
+  }
+
+  const maxScore = Math.max(...series, 1);
+  const pad = { top: 10, bottom: 10, left: 10, right: 10 };
+  const chartW = width - pad.left - pad.right;
+  const chartH = height - pad.top - pad.bottom;
+
+  const xOf = i => pad.left + (i / (series.length - 1)) * chartW;
+  const yOf = v => pad.top + chartH - (v / maxScore) * chartH;
+
+  // Filled gradient area
+  const grad = ctx.createLinearGradient(0, pad.top, 0, height);
+  grad.addColorStop(0, "rgba(255, 0, 255, 0.5)");
+  grad.addColorStop(1, "rgba(255, 0, 255, 0)");
+
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(series[0]));
+  series.forEach((v, i) => { if (i > 0) ctx.lineTo(xOf(i), yOf(v)); });
+  ctx.lineTo(xOf(series.length - 1), height);
+  ctx.lineTo(xOf(0), height);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line on top
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(series[0]));
+  series.forEach((v, i) => { if (i > 0) ctx.lineTo(xOf(i), yOf(v)); });
+  ctx.strokeStyle = "rgba(255, 0, 255, 0.9)";
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = "rgba(255, 0, 255, 0.8)";
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 }
 
 function renderPlayers() {
@@ -2535,9 +2606,9 @@ function renderMatches() {
         wager.innerHTML = `
           <div>
             <label>Wager Coins</label>
-            <input id="${betInputId}" type="number" min="1" max="${Math.floor(user.balance)}" value="${existingBet ? existingBet.wager : 10}" ${!canPlace ? 'disabled' : ''}>
+            <input id="${betInputId}" type="number" min="1" max="${Math.floor(user.balance)}" value="${existingBet ? existingBet.wager : 10}" autocomplete="off" ${!canPlace ? 'disabled' : ''}>
           </div>
-          <button class="btn btn-primary" ${!canPlace ? 'disabled' : ''}>Place Bet</button>
+          <button type="button" class="btn btn-primary" ${!canPlace ? 'disabled' : ''}>Place Bet</button>
         `;
 
         const profit = document.createElement("div");
@@ -2647,6 +2718,13 @@ function placeBet(match, pick, odds, wagerAmount) {
   }
 
   user.balance -= wagerAmount;
+
+  // Wagered coins go to the admin's balance (house takes the stake)
+  const adminUser = state.data.users.find(u => u.handle.toLowerCase() === 'admin');
+  if (adminUser) {
+    adminUser.balance += wagerAmount;
+    syncUserToSupabase(adminUser);
+  }
 
   const newBet = {
     id: `bet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,

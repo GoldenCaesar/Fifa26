@@ -797,6 +797,23 @@ select {
 .score-hero {
   text-align: center;
   overflow: hidden;
+  position: relative;
+  padding: 0;
+}
+
+.score-hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.score-hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 20px 16px;
 }
 
 .score-hero p {
@@ -845,13 +862,24 @@ select {
 }
 
 .team-card.rank1 {
+  background: linear-gradient(145deg, #ffd700, #b8860b);
+  color: #1f1f1f;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+}
+
+.team-card.rank2 {
   background: linear-gradient(145deg, #d6d5d2, #8a8986);
   color: #1f1f1f;
-  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(200, 200, 200, 0.25);
+}
+
+.team-card.rank3 {
+  background: linear-gradient(145deg, #ad6b2d, #573210);
+  box-shadow: 0 0 20px rgba(173, 107, 45, 0.3);
 }
 
 .team-card.rank5 {
-  background: linear-gradient(145deg, #ad6b2d, #573210);
+  background: var(--surface-soft);
 }
 
 .team-card.settle {
