@@ -515,16 +515,20 @@ function wireSettings() {
     
     // Run full daily refresh (force=true bypasses the "already ran today" guard)
     // This fetches matches, reloads bets, settles completed ones, and recomputes scores
-    await runDailyRefresh(true);
-    renderApp();
-    
-    btn.disabled = false;
-    btn.innerHTML = 'Force Fetch from APIs <i class="material-symbols-outlined">cloud_download</i>';
-    status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
-    
-    // Update status displays
-    updateRefreshStatusDisplays();
-    alert(`Refresh complete! Loaded ${state.data.matches.length} matches. Any completed bets have been settled.`);
+    try {
+      await runDailyRefresh(true);
+      renderApp();
+      status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
+      alert(`Refresh complete! Loaded ${state.data.matches.length} matches. Any completed bets have been settled.`);
+    } catch (err) {
+      console.error("Force refresh failed:", err);
+      status.textContent = `Refresh failed: ${err.message}`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Force Fetch from APIs <i class="material-symbols-outlined">cloud_download</i>';
+      // Always update the display regardless of success/failure
+      updateRefreshStatusDisplays();
+    }
   });
   
   // Test midnight refresh button (admin only)
@@ -1793,13 +1797,19 @@ async function shouldFetchFromApi(todayKey) {
     // Check cache_metadata table to see when data was last fetched from API
     const { data, error } = await state.supabase
       .from("cache_metadata")
-      .select("last_refresh_ymd")
+      .select("last_refresh_ymd, last_refreshed_at")
       .eq("id", 1)
       .single();
     
     if (error || !data) {
       console.log("No cache metadata found - need to fetch from API");
       return true;
+    }
+    
+    // Store the server's last refresh timestamp in local state so the display works
+    if (data.last_refreshed_at && !state.data.cache.lastRefreshedAt) {
+      state.data.cache.lastRefreshedAt = data.last_refreshed_at;
+      state.data.cache.lastRefreshYmd = data.last_refresh_ymd;
     }
     
     // If last refresh was today, use cached data
@@ -3256,6 +3266,10 @@ async function testSupabaseConnection() {
     
     // Load all community bets from Supabase
     await loadAllBetsFromSupabase();
+    
+    // Run daily refresh (uses cached DB data if already up to date today)
+    // This also reads cache_metadata.last_refreshed_at and populates the display
+    runDailyRefresh(false).catch(err => console.warn("Startup refresh failed:", err));
     
     // Set up realtime channel
     const channel = state.supabase.channel("fc26-live");
