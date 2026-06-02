@@ -2469,6 +2469,9 @@ function renderRankings() {
   const host = document.getElementById("team-cards");
   host.innerHTML = "";
 
+  const usernameEl = document.getElementById("rankings-username");
+  if (usernameEl) usernameEl.textContent = user.handle || "";
+
   user.rankings.forEach((team) => {
     const rankClass = team.rank === 1 ? "rank1" : team.rank === 2 ? "rank2" : team.rank === 3 ? "rank3" : "";
     const card = document.createElement("div");
