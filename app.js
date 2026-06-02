@@ -3018,7 +3018,41 @@ function placeBet(match, pick, odds, wagerAmount) {
   renderHomeGraph(true);
 }
 
-function deleteBet(betId) {
+async function canCancelBet(bet) {
+  const todayYmd = toYmd(new Date(), state.config.timezone);
+  const match = state.data.matches.find(m => m.id === bet.matchId);
+
+  if (!match) {
+    return { ok: false, reason: "Match data unavailable. Please refresh and try again." };
+  }
+
+  // Cancellations are only allowed before the match day begins.
+  if (match.day <= todayYmd || match.status !== "open") {
+    return { ok: false, reason: "This bet can no longer be cancelled." };
+  }
+
+  // Verify latest DB status to prevent stale-local refunds after settlement.
+  if (bet.dbId && state.supabase) {
+    try {
+      const { data: dbBet, error } = await state.supabase
+        .from("bets")
+        .select("status")
+        .eq("id", bet.dbId)
+        .single();
+
+      if (!error && dbBet && dbBet.status !== "active") {
+        await loadAllBetsFromSupabase();
+        return { ok: false, reason: "This bet was already settled and cannot be cancelled." };
+      }
+    } catch (err) {
+      console.warn("Could not verify bet status before cancellation:", err);
+    }
+  }
+
+  return { ok: true, reason: "" };
+}
+
+async function deleteBet(betId) {
   const user = getCurrentUser();
   if (!user) return;
 
@@ -3026,10 +3060,15 @@ function deleteBet(betId) {
   if (betIndex === -1) return;
 
   const bet = state.data.bets[betIndex];
-  
-  // Only allow deleting active bets
+
   if (bet.status !== "active") {
     alert("Only active bets can be cancelled.");
+    return;
+  }
+
+  const cancelCheck = await canCancelBet(bet);
+  if (!cancelCheck.ok) {
+    alert(cancelCheck.reason);
     return;
   }
 

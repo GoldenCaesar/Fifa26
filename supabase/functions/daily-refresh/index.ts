@@ -51,6 +51,15 @@ serve(async (req) => {
     });
   }
 
+  const providedRefreshToken = req.headers.get("x-refresh-token") || "";
+  if (REFRESH_TOKEN && providedRefreshToken !== REFRESH_TOKEN) {
+    console.warn("Rejected daily-refresh call: invalid refresh token");
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
   console.log("Processing POST request...");
   console.log("Env check - ODDS_API_KEY:", ODDS_API_KEY ? "SET" : "NOT SET");
   console.log("Env check - SUPABASE_URL:", SUPABASE_URL ? "SET" : "NOT SET");
