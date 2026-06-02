@@ -64,6 +64,49 @@ let WC_TEAMS = [
 ];
 
 // Normalize a team name for fuzzy matching across standard names and API variants
+// Derive a PBKDF2 hash for a password. Returns a "<hex-salt>:<hex-hash>" string
+// that is safe to store in the database. Uses a random 16-byte salt by default;
+// pass an existing saltHex to re-derive for verification.
+async function derivePasswordHash(rawPassword, saltHex) {
+  const salt = saltHex
+    ? new Uint8Array(saltHex.match(/.{2}/g).map((b) => parseInt(b, 16)))
+    : crypto.getRandomValues(new Uint8Array(16));
+
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(rawPassword),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+
+  const hashBuffer = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" },
+    keyMaterial,
+    256
+  );
+
+  const toHex = (bytes) =>
+    Array.from(new Uint8Array(bytes))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+  return `${toHex(salt)}:${toHex(hashBuffer)}`;
+}
+
+// Returns true when rawPassword matches a stored "<salt>:<hash>" string.
+// Uses a constant-time XOR loop to prevent timing-side-channel leaks.
+async function verifyPasswordHash(rawPassword, storedHash) {
+  const saltHex = storedHash.split(":")[0];
+  const derived = await derivePasswordHash(rawPassword, saltHex);
+  if (derived.length !== storedHash.length) return false;
+  let diff = 0;
+  for (let i = 0; i < derived.length; i++) {
+    diff |= derived.charCodeAt(i) ^ storedHash.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 function normalizeTeamName(name) {
   if (!name) return "";
   return name.toLowerCase()
@@ -342,8 +385,18 @@ function wireLogin() {
         passwordInput.focus();
       }
     } else if (awaitingUserPassword) {
-      // Decorative password step for regular users — any input proceeds
-      await loginByHandle(handleInput.value.trim());
+      const pwd = userPasswordInput.value;
+      if (!pwd) {
+        setStatus("login-message", "Please enter a password.");
+        userPasswordInput.focus();
+        return;
+      }
+      if (pwd.length < 8) {
+        setStatus("login-message", "Password must be at least 8 characters.");
+        userPasswordInput.focus();
+        return;
+      }
+      await loginByHandle(handleInput.value.trim(), pwd);
     } else {
       const handle = handleInput.value.trim();
       if (!handle) return;
@@ -360,7 +413,7 @@ function wireLogin() {
         userPasswordInput.focus();
         handleInput.disabled = true;
         enterBtn.innerHTML = 'Continue <i class="material-symbols-outlined">arrow_forward</i>';
-        setStatus("login-message", "");
+        setStatus("login-message", "Enter your password, or set one if you're new.");
       }
     }
   };
@@ -595,7 +648,7 @@ function hydrateSettingsForm() {
   }
 }
 
-async function loginByHandle(handle) {
+async function loginByHandle(handle, rawPassword = "") {
   if (!handle) {
     setStatus("login-message", "Enter a handle first.");
     return;
@@ -616,7 +669,16 @@ async function loginByHandle(handle) {
       if (!error && dbUsers && dbUsers.length > 0) {
         const dbUser = dbUsers[0];
         console.log(`Found existing user ${handle} in database:`, dbUser);
-        
+
+        // Verify password if one has been set for this account.
+        if (dbUser.password_hash) {
+          const ok = await verifyPasswordHash(rawPassword, dbUser.password_hash);
+          if (!ok) {
+            setStatus("login-message", "Incorrect password.");
+            return;
+          }
+        }
+
         // Load user from database into local state
         user = createNewUser(dbUser.handle);
         user.dbId = dbUser.id; // Store database UUID
@@ -625,6 +687,19 @@ async function loginByHandle(handle) {
         user.teamPoints = dbUser.team_points ?? 0;
         user.betPoints = dbUser.bet_points ?? 0;
         user.coinsEarnedFromTeams = dbUser.coins_earned_from_teams ?? 0;
+
+        // Keep the hash in local state so it is preserved on subsequent syncs.
+        if (dbUser.password_hash) {
+          user.passwordHash = dbUser.password_hash;
+        }
+
+        // If this account has no password yet (pre-migration), set one now and
+        // immediately persist it so it isn't lost if the session ends early.
+        if (!dbUser.password_hash && rawPassword) {
+          user.passwordHash = await derivePasswordHash(rawPassword);
+          console.log(`Setting password for existing account ${handle} (first login after migration)`);
+          syncUserToSupabase(user).catch(err => console.warn("Failed to save migrated password:", err));
+        }
         
         // Preserve rankings from database (handle null/undefined)
         if (Array.isArray(dbUser.rankings) && dbUser.rankings.length > 0) {
@@ -655,10 +730,16 @@ async function loginByHandle(handle) {
 
   if (!user) {
     if (handle.toLowerCase() !== "admin") {
-      const ok = window.confirm(`No account found for ${handle}. Create it now?`);
+      const ok = window.confirm(`No account found for "${handle}". Create it now?`);
       if (!ok) return;
     }
     user = createNewUser(handle);
+
+    // Store the password hash for the new account.
+    if (rawPassword) {
+      user.passwordHash = await derivePasswordHash(rawPassword);
+    }
+
     users.push(user);
     
     console.log(`Created new user: ${handle}`);
@@ -832,6 +913,12 @@ async function syncUserToSupabase(user) {
       picks_locked: user.picksLocked === true,
       rankings: user.rankings || []
     };
+
+    // Only include password_hash when we explicitly have one to avoid
+    // accidentally overwriting an existing hash with null during routine syncs.
+    if (user.passwordHash !== undefined) {
+      userData.password_hash = user.passwordHash;
+    }
     
     console.log(`Syncing user ${user.handle} to Supabase:`, userData);
     
