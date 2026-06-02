@@ -3267,9 +3267,10 @@ async function testSupabaseConnection() {
     // Load all community bets from Supabase
     await loadAllBetsFromSupabase();
     
-    // Run daily refresh (uses cached DB data if already up to date today)
-    // This also reads cache_metadata.last_refreshed_at and populates the display
-    runDailyRefresh(false).catch(err => console.warn("Startup refresh failed:", err));
+    // Read the last refresh timestamp from DB for the "Last Updated" display only.
+    // Do NOT run the full daily refresh pipeline here — that runs settlement logic
+    // which must never execute on login.
+    loadRefreshTimestamp();
     
     // Set up realtime channel
     const channel = state.supabase.channel("fc26-live");
@@ -3750,6 +3751,24 @@ function setupMidnightRefresh() {
   }, 60000); // Check every minute
   
   console.log("🔄 Midnight auto-refresh timer initialized (checks every 60 seconds)");
+}
+
+async function loadRefreshTimestamp() {
+  if (!state.supabase) return;
+  try {
+    const { data, error } = await state.supabase
+      .from("cache_metadata")
+      .select("last_refresh_ymd, last_refreshed_at")
+      .eq("id", 1)
+      .single();
+    if (!error && data && data.last_refreshed_at) {
+      state.data.cache.lastRefreshedAt = data.last_refreshed_at;
+      state.data.cache.lastRefreshYmd = data.last_refresh_ymd;
+      updateRefreshStatusDisplays();
+    }
+  } catch (err) {
+    console.warn("Could not load refresh timestamp:", err);
+  }
 }
 
 function updateRefreshStatusDisplays() {
