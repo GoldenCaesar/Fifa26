@@ -443,9 +443,12 @@ function wireSettings() {
     
     btn.disabled = true;
     btn.innerHTML = 'Fetching from APIs... <i class="material-symbols-outlined">hourglass_empty</i>';
-    status.textContent = "Calling Edge Function to fetch real match data from sports APIs...";
+    status.textContent = "Fetching real match data and settling any completed bets...";
     
-    await callEdgeFunctionRefresh();
+    // Run full daily refresh (force=true bypasses the "already ran today" guard)
+    // This fetches matches, reloads bets, settles completed ones, and recomputes scores
+    await runDailyRefresh(true);
+    renderApp();
     
     btn.disabled = false;
     btn.innerHTML = 'Force Fetch from APIs <i class="material-symbols-outlined">cloud_download</i>';
@@ -453,6 +456,7 @@ function wireSettings() {
     
     // Update status displays
     updateRefreshStatusDisplays();
+    alert(`Refresh complete! Loaded ${state.data.matches.length} matches. Any completed bets have been settled.`);
   });
   
   // Test midnight refresh button (admin only)
@@ -1646,7 +1650,10 @@ async function runDailyRefresh(force) {
   console.log("🔒 Locking today's matches...");
   lockTodaysMatches(todayKey);
   
-  console.log("💰 Settling yesterday's bets...");
+  console.log("💰 Reloading bets from database before settling...");
+  await loadAllBetsFromSupabase();
+  
+  console.log("💰 Settling completed bets...");
   settleYesterdayBets(todayKey);
   
   console.log("🏆 Recomputing leaderboard...");
@@ -1822,14 +1829,18 @@ function settleYesterdayBets(todayYmd) {
   const yesterday = shiftYmd(todayYmd, -1);
   const yesterdayMatches = state.data.matches.filter((match) => match.day === yesterday);
 
-  yesterdayMatches.forEach((match) => {
-    if (!match.result) {
-      match.result = randomResult(match.home, match.away);
-      match.status = "final";
-      // Update team stats from match result
-      updateTeamStatsFromMatch(match);
-    }
-  });
+  // Only generate random results when NOT connected to Supabase (offline/dev mode).
+  // When connected, real results come from the sports API via the DB — we should
+  // never overwrite a missing result with a fake one and settle bets incorrectly.
+  if (!state.supabase) {
+    yesterdayMatches.forEach((match) => {
+      if (!match.result) {
+        match.result = randomResult(match.home, match.away);
+        match.status = "final";
+        updateTeamStatsFromMatch(match);
+      }
+    });
+  }
 
   state.data.bets
     .filter((bet) => bet.status === "active")
@@ -3021,14 +3032,12 @@ async function callEdgeFunctionRefresh() {
     console.log("Edge Function response:", data);
     
     if (data.success) {
-      alert(`Success! Loaded ${data.matchCount} matches from ${data.source}. Reloading app...`);
+      console.log(`✓ Edge Function loaded ${data.matchCount} matches from ${data.source}`);
       await loadWorldCupMatchesFromDatabase();
-      // Update user scores from match results
-      syncUserRankingsWithTeamStats();
-      renderApp();
     } else {
-      alert(`Error: ${data.error || 'Unknown error'}\n${data.note || ''}`);
+      console.error(`Edge Function returned error: ${data.error || 'Unknown error'}`);
     }
+    return data;
   } catch (err) {
     console.error("Failed to call Edge Function:", err);
     alert(`Error: ${err.message}`);
