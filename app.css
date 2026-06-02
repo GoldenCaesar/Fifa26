@@ -512,6 +512,27 @@ select {
   min-width: 0;
 }
 
+.admin-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-coin-input {
+  width: 86px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface-hi);
+  color: var(--text);
+}
+
+.admin-give-coins-btn {
+  white-space: nowrap;
+}
+
 .admin-user-handle {
   font-weight: 700;
   font-size: 1rem;
@@ -556,6 +577,17 @@ select {
 
 .view.active {
   display: block;
+}
+
+@media (max-width: 680px) {
+  .admin-user-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-user-actions {
+    justify-content: flex-start;
+  }
 }
 
 .panel {

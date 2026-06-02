@@ -858,11 +858,53 @@ function renderAdminPanel() {
         <span class="admin-user-handle">${user.handle}</span>
         <span class="admin-user-meta">${user.totalScore.toLocaleString()} pts &bull; ${Math.floor(user.balance)} coins</span>
       </div>
-      <button class="btn btn-danger admin-delete-btn" data-userid="${user.id}" ${isCurrentAdmin ? "disabled title='Cannot delete the currently logged-in admin'" : ""}>
-        <i class="material-symbols-outlined">delete</i>
-      </button>
+      <div class="admin-user-actions">
+        <input
+          class="admin-coin-input"
+          data-userid="${user.id}"
+          type="number"
+          min="1"
+          step="1"
+          value="25"
+          aria-label="Coins to grant ${user.handle}"
+        />
+        <button class="btn admin-give-coins-btn" data-userid="${user.id}" title="Add coins to ${user.handle}">
+          Give Coins
+        </button>
+        <button class="btn btn-danger admin-delete-btn" data-userid="${user.id}" ${isCurrentAdmin ? "disabled title='Cannot delete the currently logged-in admin'" : ""}>
+          <i class="material-symbols-outlined">delete</i>
+        </button>
+      </div>
     `;
     list.appendChild(row);
+  });
+
+  list.querySelectorAll(".admin-give-coins-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const userId = btn.dataset.userid;
+      const user = state.data.users.find((u) => u.id === userId);
+      if (!user) return;
+
+      const input = list.querySelector(`.admin-coin-input[data-userid="${userId}"]`);
+      const rawAmount = Number(input?.value || 0);
+      const amount = Math.floor(rawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        alert("Enter a valid positive coin amount.");
+        return;
+      }
+
+      user.balance += amount;
+      persistState();
+      renderApp();
+
+      const syncedDbId = await syncUserToSupabase(user);
+      if (syncedDbId && !user.dbId) {
+        user.dbId = syncedDbId;
+        persistState();
+      }
+
+      setStatus("settings-status", `Added ${amount} coins to ${user.handle}.`);
+    });
   });
 
   list.querySelectorAll(".admin-delete-btn").forEach((btn) => {
