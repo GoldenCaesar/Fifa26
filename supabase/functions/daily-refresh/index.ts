@@ -171,7 +171,7 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
     const homeOutcome = h2hMarket?.outcomes?.find((o: any) => o.name === item.home_team);
     const awayOutcome = h2hMarket?.outcomes?.find((o: any) => o.name === item.away_team);
     
-    return {
+    const row: any = {
       id: `wc2026_${item.id}`,
       day: dayYmd,
       kickoff_time: kickoffTime,
@@ -180,11 +180,10 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
       odds_home: homeOutcome?.price || 2.0,
       odds_away: awayOutcome?.price || 2.0,
       status: "open",
-      result_home: null,
-      result_away: null,
-      winner: null,
       tournament_group: null
     };
+
+    return row;
   });
 }
 
@@ -208,7 +207,12 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
     const home = item.teams?.home?.name || "TBD";
     const away = item.teams?.away?.name || "TBD";
     
-    return {
+    const fixtureStatus = item.fixture?.status?.short || "";
+    const isFinal = ["FT", "AET", "PEN"].includes(fixtureStatus);
+    const homeGoals = item.goals?.home;
+    const awayGoals = item.goals?.away;
+
+    const row: any = {
       id: `wc2026_af_${item.fixture?.id || idx}`,
       day: dayYmd,
       kickoff_time: kickoffTime,
@@ -216,12 +220,19 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
       away_team: away,
       odds_home: 2.0,
       odds_away: 2.0,
-      status: "open",
-      result_home: null,
-      result_away: null,
-      winner: null,
+      status: isFinal ? "final" : "open",
       tournament_group: item.league?.round || null
     };
+
+    if (isFinal && Number.isFinite(homeGoals) && Number.isFinite(awayGoals)) {
+      row.result_home = homeGoals;
+      row.result_away = awayGoals;
+      if (homeGoals > awayGoals) row.winner = home;
+      else if (awayGoals > homeGoals) row.winner = away;
+      else row.winner = "draw";
+    }
+
+    return row;
   });
 }
 

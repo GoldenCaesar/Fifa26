@@ -1421,9 +1421,64 @@ function updateTeamStatsFromMatch(match) {
   }
 }
 
-function syncUserRankingsWithTeamStats() {
-  if (!state.data.teamStats) {
-    state.data.teamStats = initializeTeamStats();
+function hasNonZeroTeamStats(stats) {
+  if (!stats) return false;
+
+  return Object.values(stats).some((team) => {
+    const goals = Number(team?.goals || 0);
+    const wins = Number(team?.wins || 0);
+    const draws = Number(team?.draws || 0);
+    const losses = Number(team?.losses || 0);
+    return goals > 0 || wins > 0 || draws > 0 || losses > 0;
+  });
+}
+
+function rebuildTeamStatsFromMatches() {
+  const rebuilt = initializeTeamStats();
+  let completedMatchCount = 0;
+
+  (state.data.matches || []).forEach((match) => {
+    if (!match?.result) return;
+    const homeScore = Number(match.result.home);
+    const awayScore = Number(match.result.away);
+    if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) return;
+
+    const homeTeam = match.home;
+    const awayTeam = match.away;
+    if (!rebuilt[homeTeam]) rebuilt[homeTeam] = { goals: 0, wins: 0, draws: 0, losses: 0 };
+    if (!rebuilt[awayTeam]) rebuilt[awayTeam] = { goals: 0, wins: 0, draws: 0, losses: 0 };
+
+    rebuilt[homeTeam].goals += homeScore;
+    rebuilt[awayTeam].goals += awayScore;
+
+    if (match.result.winner === homeTeam) {
+      rebuilt[homeTeam].wins += 1;
+      rebuilt[awayTeam].losses += 1;
+    } else if (match.result.winner === awayTeam) {
+      rebuilt[awayTeam].wins += 1;
+      rebuilt[homeTeam].losses += 1;
+    } else {
+      rebuilt[homeTeam].draws += 1;
+      rebuilt[awayTeam].draws += 1;
+    }
+
+    completedMatchCount += 1;
+  });
+
+  return { rebuilt, completedMatchCount };
+}
+
+function syncUserRankingsWithTeamStats(options = {}) {
+  const { persistToDb = true } = options;
+  const previousStats = state.data.teamStats;
+  const { rebuilt, completedMatchCount } = rebuildTeamStatsFromMatches();
+
+  // Safety guard: if no completed matches were loaded, keep existing non-zero stats
+  // instead of wiping everyone back to zero.
+  if (completedMatchCount === 0 && hasNonZeroTeamStats(previousStats)) {
+    state.data.teamStats = previousStats;
+  } else {
+    state.data.teamStats = rebuilt;
   }
   
   state.data.users.forEach(user => {
@@ -1458,7 +1513,7 @@ function syncUserRankingsWithTeamStats() {
     user.totalScore = user.teamPoints + user.betPoints;
     
     // Sync updated scores to database
-    if (state.supabase && user.handle !== 'admin') {
+    if (persistToDb && state.supabase && user.handle !== 'admin') {
       syncUserToSupabase(user).then(dbId => {
         if (dbId && !user.dbId) {
           user.dbId = dbId;
@@ -3368,11 +3423,10 @@ function connectSupabase() {
       // Load app settings from database (maxActiveBetsPerMatch)
       await loadAppSettings();
       
-      // After connecting, load World Cup matches from database
-      loadWorldCupMatchesFromDatabase().then(() => {
-        // Update user scores from completed matches
-        syncUserRankingsWithTeamStats();
-      });
+      // After connecting, load World Cup matches from database.
+      // Do NOT run score sync here: startup should never push recalculated scores
+      // to DB before daily refresh validation completes.
+      await loadWorldCupMatchesFromDatabase();
     });
   } catch {
     setSupabaseIndicator(false, "Supabase: Connection failed");
