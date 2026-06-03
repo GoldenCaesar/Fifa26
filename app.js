@@ -763,6 +763,10 @@ async function loginByHandle(handle, rawPassword = "") {
   }
 
   state.data.currentUser = user.id;
+  if (state.isAdmin && handle.toLowerCase() === "admin") {
+    state.data.adminSessionUserId = user.id;
+    state.data.adminImpersonatingUserId = null;
+  }
   state.data.lastLogin = new Date().toISOString();
   persistState();
   
@@ -851,6 +855,8 @@ function renderAdminPanel() {
 
   state.data.users.forEach((user) => {
     const isCurrentAdmin = user.id === state.data.currentUser;
+    const isAdminUser = user.handle.toLowerCase() === "admin";
+    const isViewingAsThisUser = state.data.adminImpersonatingUserId === user.id;
     const row = document.createElement("div");
     row.className = "admin-user-row";
     row.innerHTML = `
@@ -870,6 +876,9 @@ function renderAdminPanel() {
         />
         <button class="btn admin-give-coins-btn" data-userid="${user.id}" title="Add coins to ${user.handle}">
           Give Coins
+        </button>
+        <button class="btn btn-secondary admin-loginas-btn" data-userid="${user.id}" ${isAdminUser ? "disabled title='Cannot impersonate admin'" : ""}>
+          ${isViewingAsThisUser ? "Viewing" : "Login As"}
         </button>
         <button class="btn btn-danger admin-delete-btn" data-userid="${user.id}" ${isCurrentAdmin ? "disabled title='Cannot delete the currently logged-in admin'" : ""}>
           <i class="material-symbols-outlined">delete</i>
@@ -917,7 +926,79 @@ function renderAdminPanel() {
     });
   });
 
+  list.querySelectorAll(".admin-loginas-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const userId = btn.dataset.userid;
+      const user = state.data.users.find((u) => u.id === userId);
+      if (!user || user.handle.toLowerCase() === "admin") return;
+      if (state.data.adminImpersonatingUserId === user.id) return;
+      startAdminImpersonation(user.id);
+    });
+  });
+
   renderAdminBetManager();
+}
+
+function updateAdminImpersonationMenu() {
+  const dropdown = document.getElementById("user-menu-dropdown");
+  if (!dropdown) return;
+
+  const shouldShow = state.isAdmin && !!state.data.adminImpersonatingUserId;
+  let returnBtn = document.getElementById("admin-return-btn");
+
+  if (!shouldShow) {
+    if (returnBtn) returnBtn.remove();
+    return;
+  }
+
+  if (!returnBtn) {
+    returnBtn = document.createElement("button");
+    returnBtn.id = "admin-return-btn";
+    returnBtn.className = "menu-item";
+    returnBtn.innerHTML = '<i class="material-symbols-outlined">admin_panel_settings</i><span>Return to Admin</span>';
+    dropdown.insertBefore(returnBtn, dropdown.firstChild);
+  }
+
+  returnBtn.onclick = () => {
+    stopAdminImpersonation();
+    dropdown.style.display = "none";
+  };
+}
+
+function startAdminImpersonation(targetUserId) {
+  if (!state.isAdmin) return;
+  const targetUser = state.data.users.find((u) => u.id === targetUserId);
+  if (!targetUser || targetUser.handle.toLowerCase() === "admin") return;
+
+  if (!state.data.adminSessionUserId) {
+    const adminUser = state.data.users.find((u) => u.handle.toLowerCase() === "admin");
+    state.data.adminSessionUserId = adminUser?.id || state.data.currentUser;
+  }
+
+  state.data.adminImpersonatingUserId = targetUser.id;
+  state.data.currentUser = targetUser.id;
+  persistState();
+
+  renderApp();
+  switchView("standings");
+  updateAdminImpersonationMenu();
+}
+
+function stopAdminImpersonation() {
+  if (!state.isAdmin) return;
+
+  const adminUser = state.data.users.find((u) => u.handle.toLowerCase() === "admin");
+  const adminUserId = state.data.adminSessionUserId || adminUser?.id;
+  if (adminUserId) {
+    state.data.currentUser = adminUserId;
+  }
+
+  state.data.adminImpersonatingUserId = null;
+  persistState();
+
+  renderApp();
+  switchView("settings");
+  updateAdminImpersonationMenu();
 }
 
 function getAdminEditableUsers() {
@@ -1941,7 +2022,9 @@ function enterApp() {
   const user = getCurrentUser();
   const displayName = document.getElementById("user-display-name");
   if (user && displayName) {
-    displayName.textContent = user.handle;
+    displayName.textContent = state.isAdmin && state.data.adminImpersonatingUserId
+      ? `${user.handle} (as admin)`
+      : user.handle;
   }
   
   // Wire up user menu toggle
@@ -2032,6 +2115,8 @@ function enterApp() {
     signoutBtn.onclick = () => {
       state.data.currentUser = null;
       state.isAdmin = false;
+      state.data.adminSessionUserId = null;
+      state.data.adminImpersonatingUserId = null;
       persistState();
       // Reset to login screen
       document.getElementById("screen-app").classList.remove("active");
@@ -2059,6 +2144,8 @@ function enterApp() {
       startCountdown();
     };
   }
+
+  updateAdminImpersonationMenu();
   
   switchView("home");
   // Load matches from database and then render
@@ -4195,6 +4282,8 @@ function createInitialState() {
 
   return {
     currentUser: null,
+    adminSessionUserId: null,
+    adminImpersonatingUserId: null,
     lastLogin: null,
     users: baselineUsers,
     scoreHistory: {}, // { "2026-05-20": { userId: score, ... }, ... }
