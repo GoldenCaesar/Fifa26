@@ -935,8 +935,6 @@ function renderAdminPanel() {
       startAdminImpersonation(user.id);
     });
   });
-
-  renderAdminBetManager();
 }
 
 function updateAdminImpersonationMenu() {
