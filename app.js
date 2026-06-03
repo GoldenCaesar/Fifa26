@@ -1932,6 +1932,16 @@ function syncUserRankingsWithTeamStats(options = {}) {
   const { persistToDb = true } = options;
   const previousStats = state.data.teamStats;
   const { rebuilt, completedMatchCount } = rebuildTeamStatsFromMatches();
+  const hasExistingUserProgress = (state.data.users || []).some((user) =>
+    Number(user?.teamPoints || 0) > 0 || Number(user?.coinsEarnedFromTeams || 0) > 0
+  );
+
+  // Hard safety: if we have existing progress but zero completed matches loaded,
+  // skip score/coin mutation entirely to prevent accidental overnight resets.
+  if (completedMatchCount === 0 && hasExistingUserProgress) {
+    console.warn("Skipping score sync: no completed match results available; preserving existing user progress.");
+    return;
+  }
 
   // Safety guard: if no completed matches were loaded, keep existing non-zero stats
   // instead of wiping everyone back to zero.
