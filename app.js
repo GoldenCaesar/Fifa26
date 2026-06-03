@@ -916,6 +916,385 @@ function renderAdminPanel() {
       deleteUser(userId);
     });
   });
+
+  renderAdminBetManager();
+}
+
+function getAdminEditableUsers() {
+  return state.data.users
+    .filter((u) => u.handle.toLowerCase() !== "admin")
+    .sort((a, b) => (a.handle || "").localeCompare(b.handle || ""));
+}
+
+function getAdminSortedMatches() {
+  return [...(state.data.matches || [])]
+    .filter((m) => m && m.id)
+    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+}
+
+function getMatchOptionLabel(match) {
+  const [year, month, day] = String(match.day || "").split("-");
+  const dateObj = year && month && day ? new Date(Number(year), Number(month) - 1, Number(day)) : new Date();
+  const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const timeStr = match.time ? `${convertUtcToPst(match.time)} PST` : "TBD";
+  return `${dateStr} ${timeStr} - ${match.home} vs ${match.away}`;
+}
+
+function getBetMatchLabel(matchId) {
+  const match = state.data.matches.find((m) => m.id === matchId);
+  if (!match) return `Unknown match (${matchId})`;
+  return getMatchOptionLabel(match);
+}
+
+function recomputeUserBetDerivedFields(user) {
+  const userBets = state.data.bets.filter((b) => b.userId === user.id);
+  const totalWagered = userBets.reduce((sum, bet) => sum + Number(bet.wager || 0), 0);
+  const totalBetPoints = userBets
+    .filter((bet) => bet.outcome === "win")
+    .reduce((sum, bet) => sum + Number(bet.delta || 0), 0);
+
+  user.betPoints = Math.max(0, Math.round(totalBetPoints));
+  user.totalScore = (user.teamPoints || 0) + user.betPoints;
+  user.balance = Math.max(0, Math.floor(100 + (user.coinsEarnedFromTeams || 0) - totalWagered));
+}
+
+async function persistAdminBetAndUserChanges(user, betsToSync = [], deletedDbId = null) {
+  persistState();
+
+  for (const bet of betsToSync) {
+    const dbId = await syncBetToSupabase(bet);
+    if (dbId && !bet.dbId) {
+      bet.dbId = dbId;
+      persistState();
+    }
+  }
+
+  if (deletedDbId) {
+    await deleteBetFromSupabase(deletedDbId);
+  }
+
+  await syncUserToSupabase(user);
+}
+
+function renderAdminBetManager() {
+  const host = document.getElementById("admin-bet-manager");
+  if (!host) return;
+
+  const statusEl = document.getElementById("admin-bet-manager-status");
+  const users = getAdminEditableUsers();
+  const matches = getAdminSortedMatches();
+
+  if (users.length === 0) {
+    host.innerHTML = '<div class="inline-note">No players available for bet management.</div>';
+    return;
+  }
+
+  const selectedUserId = (state.data.adminBetManagerUserId && users.some(u => u.id === state.data.adminBetManagerUserId))
+    ? state.data.adminBetManagerUserId
+    : users[0].id;
+
+  state.data.adminBetManagerUserId = selectedUserId;
+  const selectedUser = users.find((u) => u.id === selectedUserId);
+  const selectedUserBets = state.data.bets
+    .filter((b) => b.userId === selectedUserId)
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+  const userOptions = users
+    .map((u) => `<option value="${u.id}" ${u.id === selectedUserId ? "selected" : ""}>${u.handle}</option>`)
+    .join("");
+
+  const matchOptions = matches
+    .map((m) => `<option value="${m.id}">${getMatchOptionLabel(m)}</option>`)
+    .join("");
+
+  const defaultMatch = matches[0];
+  const createMultipliers = defaultMatch ? getBetMultipliers(defaultMatch) : { home: 0.5, away: 0.5 };
+
+  host.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+        <label style="display:flex;flex-direction:column;gap:6px;min-width:220px">
+          <span style="color:var(--muted);font-size:0.8rem">Player</span>
+          <select id="admin-bet-player-select">${userOptions}</select>
+        </label>
+        <div class="inline-note" style="margin:0">Managing <strong>${selectedUser.handle}</strong> • ${selectedUserBets.length} bet(s)</div>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-weight:700">Create Bet For ${selectedUser.handle}</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Match</span><select id="admin-bet-create-match">${matchOptions}</select></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Pick</span><select id="admin-bet-create-pick"></select></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Odds</span><input id="admin-bet-create-odds" type="number" min="0" max="1" step="0.01" value="${createMultipliers.home.toFixed(2)}"></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Wager</span><input id="admin-bet-create-wager" type="number" min="1" step="1" value="10"></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Status</span><select id="admin-bet-create-status"><option value="active">active</option><option value="settled">settled</option></select></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Outcome</span><select id="admin-bet-create-outcome"><option value="pending">pending</option><option value="win">win</option><option value="loss">loss</option></select></label>
+          <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:0.75rem;color:var(--muted)">Delta</span><input id="admin-bet-create-delta" type="number" step="1" value="0"></label>
+          <button id="admin-bet-create-btn" class="btn btn-primary" type="button">Create</button>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-weight:700">Edit Existing Bets</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto;gap:8px;font-size:0.75rem;color:var(--muted)">
+          <div>Match</div><div>Pick</div><div>Odds</div><div>Wager</div><div>Status</div><div>Outcome</div><div>Delta</div><div></div><div></div>
+        </div>
+        <div id="admin-bet-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+  `;
+
+  const playerSelect = document.getElementById("admin-bet-player-select");
+  const createMatchSelect = document.getElementById("admin-bet-create-match");
+  const createPickSelect = document.getElementById("admin-bet-create-pick");
+  const createOddsInput = document.getElementById("admin-bet-create-odds");
+  const createStatusSelect = document.getElementById("admin-bet-create-status");
+  const createOutcomeSelect = document.getElementById("admin-bet-create-outcome");
+  const createDeltaInput = document.getElementById("admin-bet-create-delta");
+  const rowsHost = document.getElementById("admin-bet-rows");
+
+  const refreshCreatePickOptions = () => {
+    const selectedMatch = matches.find((m) => m.id === createMatchSelect.value) || matches[0];
+    if (!selectedMatch) {
+      createPickSelect.innerHTML = "";
+      return;
+    }
+
+    const multipliers = getBetMultipliers(selectedMatch);
+    createPickSelect.innerHTML = `
+      <option value="${selectedMatch.home}">${selectedMatch.home}</option>
+      <option value="${selectedMatch.away}">${selectedMatch.away}</option>
+    `;
+    createOddsInput.value = multipliers.home.toFixed(2);
+  };
+
+  const setCreateDeltaDefault = () => {
+    const wager = Number(document.getElementById("admin-bet-create-wager").value || 0);
+    const odds = Number(createOddsInput.value || 0);
+    const status = createStatusSelect.value;
+    const outcome = createOutcomeSelect.value;
+
+    if (status !== "settled" || outcome === "pending") {
+      createDeltaInput.value = "0";
+      return;
+    }
+    if (outcome === "loss") {
+      createDeltaInput.value = String(-Math.abs(Math.round(wager)));
+      return;
+    }
+    createDeltaInput.value = String(Math.round(wager * odds));
+  };
+
+  const renderBetRows = () => {
+    rowsHost.innerHTML = "";
+
+    if (selectedUserBets.length === 0) {
+      rowsHost.innerHTML = '<div class="inline-note">No bets for this player.</div>';
+      return;
+    }
+
+    selectedUserBets.forEach((bet) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr auto auto;gap:8px;align-items:end";
+
+      const match = state.data.matches.find((m) => m.id === bet.matchId);
+      const matchOptionsEdit = matches
+        .map((m) => `<option value="${m.id}" ${m.id === bet.matchId ? "selected" : ""}>${getMatchOptionLabel(m)}</option>`)
+        .join("");
+      const pickOptions = match
+        ? `<option value="${match.home}" ${bet.pick === match.home ? "selected" : ""}>${match.home}</option><option value="${match.away}" ${bet.pick === match.away ? "selected" : ""}>${match.away}</option>`
+        : `<option value="${bet.pick}" selected>${bet.pick}</option>`;
+
+      row.innerHTML = `
+        <label style="display:flex;flex-direction:column;gap:4px"><select class="admin-edit-match">${matchOptionsEdit}</select></label>
+        <label style="display:flex;flex-direction:column;gap:4px"><select class="admin-edit-pick">${pickOptions}</select></label>
+        <label style="display:flex;flex-direction:column;gap:4px"><input class="admin-edit-odds" type="number" min="0" max="1" step="0.01" value="${Number(bet.odds || 0).toFixed(2)}"></label>
+        <label style="display:flex;flex-direction:column;gap:4px"><input class="admin-edit-wager" type="number" min="1" step="1" value="${Math.max(1, Math.round(Number(bet.wager || 1)))}"></label>
+        <label style="display:flex;flex-direction:column;gap:4px"><select class="admin-edit-status"><option value="active" ${bet.status === "active" ? "selected" : ""}>active</option><option value="settled" ${bet.status === "settled" ? "selected" : ""}>settled</option></select></label>
+        <label style="display:flex;flex-direction:column;gap:4px"><select class="admin-edit-outcome"><option value="pending" ${bet.outcome === "pending" ? "selected" : ""}>pending</option><option value="win" ${bet.outcome === "win" ? "selected" : ""}>win</option><option value="loss" ${bet.outcome === "loss" ? "selected" : ""}>loss</option></select></label>
+        <label style="display:flex;flex-direction:column;gap:4px"><input class="admin-edit-delta" type="number" step="1" value="${Math.round(Number(bet.delta || 0))}"></label>
+        <button class="btn btn-secondary admin-bet-save" type="button">Save</button>
+        <button class="btn btn-danger admin-bet-delete" type="button">Delete</button>
+      `;
+
+      const matchSelect = row.querySelector(".admin-edit-match");
+      const pickSelect = row.querySelector(".admin-edit-pick");
+      const oddsInput = row.querySelector(".admin-edit-odds");
+      const wagerInput = row.querySelector(".admin-edit-wager");
+      const statusSelect = row.querySelector(".admin-edit-status");
+      const outcomeSelect = row.querySelector(".admin-edit-outcome");
+      const deltaInput = row.querySelector(".admin-edit-delta");
+
+      const refreshEditPickOptions = () => {
+        const nextMatch = state.data.matches.find((m) => m.id === matchSelect.value);
+        if (!nextMatch) return;
+        const currentPick = pickSelect.value;
+        pickSelect.innerHTML = `
+          <option value="${nextMatch.home}">${nextMatch.home}</option>
+          <option value="${nextMatch.away}">${nextMatch.away}</option>
+        `;
+        if (currentPick === nextMatch.home || currentPick === nextMatch.away) {
+          pickSelect.value = currentPick;
+        }
+      };
+
+      const applyDeltaDefaults = () => {
+        const wager = Number(wagerInput.value || 0);
+        const odds = Number(oddsInput.value || 0);
+        const status = statusSelect.value;
+        const outcome = outcomeSelect.value;
+
+        if (status !== "settled" || outcome === "pending") {
+          deltaInput.value = "0";
+          return;
+        }
+        if (outcome === "loss") {
+          deltaInput.value = String(-Math.abs(Math.round(wager)));
+          return;
+        }
+        deltaInput.value = String(Math.round(wager * odds));
+      };
+
+      matchSelect.addEventListener("change", refreshEditPickOptions);
+      statusSelect.addEventListener("change", applyDeltaDefaults);
+      outcomeSelect.addEventListener("change", applyDeltaDefaults);
+      oddsInput.addEventListener("input", applyDeltaDefaults);
+      wagerInput.addEventListener("input", applyDeltaDefaults);
+
+      row.querySelector(".admin-bet-save").addEventListener("click", async () => {
+        const user = state.data.users.find((u) => u.id === selectedUserId);
+        if (!user) return;
+
+        const nextMatch = state.data.matches.find((m) => m.id === matchSelect.value);
+        if (!nextMatch) {
+          alert("Invalid match selected.");
+          return;
+        }
+
+        bet.matchId = nextMatch.id;
+        bet.pick = pickSelect.value;
+        bet.odds = Math.max(0, Math.min(1, Number(oddsInput.value || 0)));
+        bet.wager = Math.max(1, Math.round(Number(wagerInput.value || 1)));
+        bet.status = statusSelect.value;
+        bet.outcome = outcomeSelect.value;
+        bet.delta = Math.round(Number(deltaInput.value || 0));
+
+        if (bet.status === "active") {
+          bet.outcome = "pending";
+          bet.delta = 0;
+          bet.settledAt = null;
+        } else {
+          if (bet.outcome === "loss") {
+            bet.delta = -Math.abs(bet.wager);
+          } else if (bet.outcome === "win" && bet.delta <= 0) {
+            bet.delta = Math.round(bet.wager * bet.odds);
+          }
+          bet.settledAt = bet.settledAt || new Date().toISOString();
+        }
+
+        recomputeUserBetDerivedFields(user);
+        await persistAdminBetAndUserChanges(user, [bet]);
+
+        if (statusEl) statusEl.textContent = `Saved bet for ${user.handle}: ${getBetMatchLabel(bet.matchId)}`;
+        renderAdminBetManager();
+        renderMatches();
+        renderCommunity();
+        renderHistory();
+        renderRankings();
+        renderPlayers();
+        renderHomeGraph(false);
+      });
+
+      row.querySelector(".admin-bet-delete").addEventListener("click", async () => {
+        const user = state.data.users.find((u) => u.id === selectedUserId);
+        if (!user) return;
+        if (!confirm(`Delete this bet for ${user.handle}?`)) return;
+
+        const deletedDbId = bet.dbId || null;
+        state.data.bets = state.data.bets.filter((b) => b.id !== bet.id);
+        recomputeUserBetDerivedFields(user);
+        await persistAdminBetAndUserChanges(user, [], deletedDbId);
+
+        if (statusEl) statusEl.textContent = `Deleted bet for ${user.handle}.`;
+        renderAdminBetManager();
+        renderMatches();
+        renderCommunity();
+        renderHistory();
+        renderRankings();
+        renderPlayers();
+        renderHomeGraph(false);
+      });
+
+      rowsHost.appendChild(row);
+    });
+  };
+
+  playerSelect.addEventListener("change", () => {
+    state.data.adminBetManagerUserId = playerSelect.value;
+    persistState();
+    renderAdminBetManager();
+  });
+
+  createMatchSelect.addEventListener("change", refreshCreatePickOptions);
+  createStatusSelect.addEventListener("change", setCreateDeltaDefault);
+  createOutcomeSelect.addEventListener("change", setCreateDeltaDefault);
+  document.getElementById("admin-bet-create-odds").addEventListener("input", setCreateDeltaDefault);
+  document.getElementById("admin-bet-create-wager").addEventListener("input", setCreateDeltaDefault);
+
+  document.getElementById("admin-bet-create-btn").addEventListener("click", async () => {
+    const user = state.data.users.find((u) => u.id === selectedUserId);
+    if (!user) return;
+
+    const match = state.data.matches.find((m) => m.id === createMatchSelect.value);
+    if (!match) {
+      alert("Select a valid match.");
+      return;
+    }
+
+    const newBet = {
+      id: `bet_admin_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      userId: user.id,
+      matchId: match.id,
+      pick: createPickSelect.value,
+      odds: Math.max(0, Math.min(1, Number(createOddsInput.value || 0))),
+      wager: Math.max(1, Math.round(Number(document.getElementById("admin-bet-create-wager").value || 1))),
+      status: createStatusSelect.value,
+      outcome: createOutcomeSelect.value,
+      delta: Math.round(Number(createDeltaInput.value || 0)),
+      createdAt: new Date().toISOString(),
+      settledAt: null
+    };
+
+    if (newBet.status === "active") {
+      newBet.outcome = "pending";
+      newBet.delta = 0;
+      newBet.settledAt = null;
+    } else {
+      if (newBet.outcome === "loss") {
+        newBet.delta = -Math.abs(newBet.wager);
+      } else if (newBet.outcome === "win" && newBet.delta <= 0) {
+        newBet.delta = Math.round(newBet.wager * newBet.odds);
+      }
+      newBet.settledAt = new Date().toISOString();
+    }
+
+    state.data.bets.push(newBet);
+    recomputeUserBetDerivedFields(user);
+    await persistAdminBetAndUserChanges(user, [newBet]);
+
+    if (statusEl) statusEl.textContent = `Created bet for ${user.handle}: ${getBetMatchLabel(newBet.matchId)}`;
+    renderAdminBetManager();
+    renderMatches();
+    renderCommunity();
+    renderHistory();
+    renderRankings();
+    renderPlayers();
+    renderHomeGraph(false);
+  });
+
+  refreshCreatePickOptions();
+  setCreateDeltaDefault();
+  renderBetRows();
 }
 
 function deleteUser(userId) {
