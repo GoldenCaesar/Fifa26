@@ -516,10 +516,12 @@ function wireSettings() {
     try {
       const todayKey = toYmd(new Date(), state.config.timezone);
       // Simulate that a new day just started so admin can test the exact midnight code path now.
+      // skipApiFetch=true: settle against existing match data only — do NOT re-trigger the
+      // edge function. Use "Test API + Midnight Path" if you also want a fresh API pull.
       state.data.cache.lastRefreshYmd = shiftYmd(todayKey, -1);
       persistState();
 
-      await runDailyRefresh(false);
+      await runDailyRefresh(false, true);
       renderApp();
       status.textContent = `Midnight pipeline complete at ${new Date().toLocaleTimeString()}. Matches: ${state.data.matches.length}`;
       alert(`Midnight pipeline complete. Loaded ${state.data.matches.length} matches, reloaded bets from DB, and settled completed bets.`);
@@ -2341,7 +2343,10 @@ function lockUserPicks() {
   enterApp();
 }
 
-async function runDailyRefresh(force) {
+// skipApiFetch=true: bypass the edge-function gate and use existing DB match data.
+// Use this for the "midnight settlement" button so it never unintentionally re-triggers
+// the API fetch when the DB cache is stale — only the "Test API" button should do that.
+async function runDailyRefresh(force, skipApiFetch = false) {
   const now = new Date();
   const todayKey = toYmd(now, state.config.timezone);
   if (!force && state.data.cache.lastRefreshYmd === todayKey) {
@@ -2351,8 +2356,9 @@ async function runDailyRefresh(force) {
 
   console.log("🔄 Running daily refresh...");
   
-  // Check if we need to fetch fresh data from API (only once per day at midnight)
-  const needsApiFetch = await shouldFetchFromApi(todayKey);
+  // Check if we need to fetch fresh data from API (only once per day at midnight).
+  // When skipApiFetch is true we always load from the existing DB rows — no edge-function call.
+  const needsApiFetch = !skipApiFetch && await shouldFetchFromApi(todayKey);
   if (needsApiFetch) {
     console.log("📡 Fetching fresh match data from Odds API via Edge Function...");
     await callEdgeFunctionRefresh();
@@ -2361,12 +2367,14 @@ async function runDailyRefresh(force) {
     await loadWorldCupMatchesFromDatabase();
   }
   
-  // Update user scores from real match results
-  console.log("📊 Syncing user rankings with team stats...");
-  syncUserRankingsWithTeamStats();
-  
   console.log("🔒 Locking today's matches...");
   lockTodaysMatches(todayKey);
+  
+  // Refresh user roster so dbId map is current before we try to map DB bets to local users.
+  // Without this, users who joined since the last startup won't appear in dbIdToLocalUser
+  // and their bets would be silently dropped when loadAllBetsFromSupabase rebuilds state.
+  console.log("👥 Refreshing user roster before bet reload...");
+  await loadUsersFromSupabase();
   
   console.log("💰 Reloading bets from database before settling...");
   await loadAllBetsFromSupabase();
@@ -2608,11 +2616,14 @@ function settleYesterdayBets(todayYmd) {
     });
   }
 
+  // Only settle bets whose match day is in the past (≤ yesterday).
+  // This prevents future matches with pre-populated API results from being
+  // settled early, and stops settlement logic from spilling onto wrong days.
   state.data.bets
     .filter((bet) => bet.status === "active")
     .forEach((bet) => {
       const match = state.data.matches.find((entry) => entry.id === bet.matchId);
-      if (!match || !match.result) return;
+      if (!match || !match.result || match.day > yesterday) return;
 
       const user = state.data.users.find((entry) => entry.id === bet.userId);
       if (!user) return;
