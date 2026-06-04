@@ -69,6 +69,8 @@ serve(async (req) => {
     console.log("Creating Supabase client...");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     console.log("Supabase client created successfully");
+
+    const existingMatchIds = await loadExistingMatchIdsByFixture(supabase);
     
     // Fetch ALL World Cup matches from Odds API
     let allMatches = [];
@@ -106,6 +108,11 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
+
+    allMatches = allMatches.map((match) => {
+      const existingId = existingMatchIds.get(buildFixtureKey(match.day, match.home_team, match.away_team));
+      return existingId ? { ...match, id: existingId } : match;
+    });
 
     // Upsert matches without deleting them, preserving existing bets and records!
     const { error } = await supabase.from("matches").upsert(allMatches, { onConflict: "id" });
@@ -234,6 +241,43 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
 
     return row;
   });
+}
+
+async function loadExistingMatchIdsByFixture(supabase: ReturnType<typeof createClient>): Promise<Map<string, string>> {
+  const fixtureMap = new Map<string, string>();
+
+  const { data, error } = await supabase
+    .from("matches")
+    .select("id, day, home_team, away_team")
+    .gte("day", "2026-06-11")
+    .lte("day", "2026-07-19");
+
+  if (error) {
+    console.warn("Could not load existing matches for ID preservation:", error.message);
+    return fixtureMap;
+  }
+
+  for (const row of data || []) {
+    const key = buildFixtureKey(String(row.day), row.home_team, row.away_team);
+    if (!fixtureMap.has(key)) {
+      fixtureMap.set(key, row.id);
+    }
+  }
+
+  return fixtureMap;
+}
+
+function buildFixtureKey(day: string, homeTeam: string, awayTeam: string): string {
+  return [day, normalizeFixtureTeamName(homeTeam), normalizeFixtureTeamName(awayTeam)].join("|");
+}
+
+function normalizeFixtureTeamName(team: string): string {
+  return String(team || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function generateMockMatches(dayYmd: string): any[] {

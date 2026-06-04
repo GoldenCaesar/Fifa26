@@ -5,6 +5,7 @@ create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   handle text unique not null,
   balance numeric not null default 2450,
+  manual_coin_adjustment numeric not null default 0,
   total_score numeric not null default 2450,
   picks_locked boolean not null default false,
   rankings jsonb,

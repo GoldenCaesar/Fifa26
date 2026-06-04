@@ -510,22 +510,25 @@ function wireSettings() {
     const status = document.getElementById("admin-refresh-status");
     
     btn.disabled = true;
-    btn.innerHTML = 'Fetching from APIs... <i class="material-symbols-outlined">hourglass_empty</i>';
-    status.textContent = "Fetching real match data and settling any completed bets...";
-    
-    // Run full daily refresh (force=true bypasses the "already ran today" guard)
-    // This fetches matches, reloads bets, settles completed ones, and recomputes scores
+    btn.innerHTML = 'Running midnight pipeline... <i class="material-symbols-outlined">hourglass_empty</i>';
+    status.textContent = "Running exact midnight refresh path (day rollover simulation + full settlement).";
+
     try {
-      await runDailyRefresh(true);
+      const todayKey = toYmd(new Date(), state.config.timezone);
+      // Simulate that a new day just started so admin can test the exact midnight code path now.
+      state.data.cache.lastRefreshYmd = shiftYmd(todayKey, -1);
+      persistState();
+
+      await runDailyRefresh(false);
       renderApp();
-      status.textContent = `Last refreshed: ${new Date().toLocaleTimeString()}. Total matches: ${state.data.matches.length}`;
-      alert(`Refresh complete! Loaded ${state.data.matches.length} matches. Any completed bets have been settled.`);
+      status.textContent = `Midnight pipeline complete at ${new Date().toLocaleTimeString()}. Matches: ${state.data.matches.length}`;
+      alert(`Midnight pipeline complete. Loaded ${state.data.matches.length} matches, reloaded bets from DB, and settled completed bets.`);
     } catch (err) {
       console.error("Force refresh failed:", err);
       status.textContent = `Refresh failed: ${err.message}`;
     } finally {
       btn.disabled = false;
-      btn.innerHTML = 'Force Fetch from APIs <i class="material-symbols-outlined">cloud_download</i>';
+      btn.innerHTML = 'Run Midnight Refresh Now <i class="material-symbols-outlined">nights_stay</i>';
       // Always update the display regardless of success/failure
       updateRefreshStatusDisplays();
     }
@@ -539,48 +542,34 @@ function wireSettings() {
       const btn = testMidnightBtn;
       
       btn.disabled = true;
-      btn.innerHTML = '<i class="material-symbols-outlined">hourglass_empty</i> Running test...';
-      status.innerHTML = '🧪 <strong>Simulating midnight refresh...</strong><br>This tests score updates, bet settlements, and match locking without fetching new API data.';
+      btn.innerHTML = '<i class="material-symbols-outlined">hourglass_empty</i> Running API + midnight...';
+      status.innerHTML = '🧪 <strong>Forcing API pull, then running midnight pipeline.</strong><br>This validates end-to-end refresh with real API ingestion.';
       
-      console.log("=== TEST MIDNIGHT REFRESH STARTED ===");
-      const now = new Date();
-      const todayKey = toYmd(now, state.config.timezone);
+      console.log("=== API + MIDNIGHT REFRESH TEST STARTED ===");
       
       try {
-        // Run the midnight refresh logic without forcing API fetch
-        console.log("Testing score sync...");
-        syncUserRankingsWithTeamStats();
-        
-        console.log("Testing match locking...");
-        lockTodaysMatches(todayKey);
-        
-        console.log("Testing bet settlement...");
-        settleYesterdayBets(todayKey);
-        
-        console.log("Testing leaderboard recompute...");
-        recomputeLeaderboard();
-        
-        console.log("Recording daily scores...");
-        recordDailyScores(todayKey);
-        
-        state.data.cache.lastRefreshYmd = todayKey;
-        state.data.cache.lastRefreshedAt = now.toISOString();
+        await callEdgeFunctionRefresh();
+
+        const todayKey = toYmd(new Date(), state.config.timezone);
+        state.data.cache.lastRefreshYmd = shiftYmd(todayKey, -1);
         persistState();
-        
-        console.log("=== TEST MIDNIGHT REFRESH COMPLETED ===");
-        
-        status.innerHTML = `✅ <strong>Test successful!</strong><br>Scores synced, bets settled, matches locked. Last test: ${now.toLocaleTimeString()} PST`;
+
+        await runDailyRefresh(false);
+
+        console.log("=== API + MIDNIGHT REFRESH TEST COMPLETED ===");
+
+        status.innerHTML = `✅ <strong>API + midnight test successful.</strong><br>Fresh matches loaded, bets reloaded, settlement run. Last test: ${new Date().toLocaleTimeString()} PST`;
         
         // Update displays
         updateRefreshStatusDisplays();
         renderApp();
       } catch (err) {
-        console.error("Test midnight refresh failed:", err);
+        console.error("API + midnight refresh test failed:", err);
         status.innerHTML = `❌ <strong>Test failed:</strong> ${err.message}`;
       }
       
       btn.disabled = false;
-      btn.innerHTML = '<i class="material-symbols-outlined">science</i> Test Midnight Refresh (Simulate)';
+      btn.innerHTML = '<i class="material-symbols-outlined">science</i> Test API + Midnight Path';
     });
   }
   
@@ -688,6 +677,7 @@ async function loginByHandle(handle, rawPassword = "") {
           // User exists locally — overwrite with fresh DB values.
           user.dbId = dbUser.id;
           user.balance = dbUser.balance ?? 100;
+          user.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? 0;
           user.totalScore = dbUser.total_score ?? 0;
           user.teamPoints = dbUser.team_points ?? 0;
           user.betPoints = dbUser.bet_points ?? 0;
@@ -703,6 +693,7 @@ async function loginByHandle(handle, rawPassword = "") {
           user = createNewUser(dbUser.handle);
           user.dbId = dbUser.id;
           user.balance = dbUser.balance ?? 100;
+          user.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? 0;
           user.totalScore = dbUser.total_score ?? 0;
           user.teamPoints = dbUser.team_points ?? 0;
           user.betPoints = dbUser.bet_points ?? 0;
@@ -775,14 +766,10 @@ async function loginByHandle(handle, rawPassword = "") {
   
   // Recalculate user balance from bets to fix any sync issues
   // Balance = starting coins + coins from teams - total wagered
-  const totalWagered = state.data.bets
-    .filter(b => b.userId === user.id)
-    .reduce((sum, bet) => sum + bet.wager, 0);
-  
-  const correctBalance = 100 + (user.coinsEarnedFromTeams || 0) - totalWagered;
+  const correctBalance = calculateUserBalanceFromBets(user);
   
   if (user.balance !== correctBalance) {
-    console.log(`Reconciling balance for ${user.handle}: DB says ${user.balance}, should be ${correctBalance} (earned: ${user.coinsEarnedFromTeams}, wagered: ${totalWagered})`);
+    console.log(`Reconciling balance for ${user.handle}: DB says ${user.balance}, should be ${correctBalance} (earned: ${user.coinsEarnedFromTeams}, manual: ${getUserManualCoinAdjustment(user)})`);
     user.balance = correctBalance;
     persistState();
     // Sync corrected balance back to database
@@ -877,6 +864,9 @@ function renderAdminPanel() {
         <button class="btn admin-give-coins-btn" data-userid="${user.id}" title="Add coins to ${user.handle}">
           Give Coins
         </button>
+        <button class="btn btn-secondary admin-remove-coins-btn" data-userid="${user.id}" title="Remove coins from ${user.handle}">
+          Remove Coins
+        </button>
         <button class="btn btn-secondary admin-loginas-btn" data-userid="${user.id}" ${isAdminUser ? "disabled title='Cannot impersonate admin'" : ""}>
           ${isViewingAsThisUser ? "Viewing" : "Login As"}
         </button>
@@ -902,7 +892,8 @@ function renderAdminPanel() {
         return;
       }
 
-      user.balance += amount;
+      user.manualCoinAdjustment = getUserManualCoinAdjustment(user) + amount;
+      user.balance = calculateUserBalanceFromBets(user);
       persistState();
       renderApp();
 
@@ -913,6 +904,40 @@ function renderAdminPanel() {
       }
 
       setStatus("settings-status", `Added ${amount} coins to ${user.handle}.`);
+    });
+  });
+
+  list.querySelectorAll(".admin-remove-coins-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const userId = btn.dataset.userid;
+      const user = state.data.users.find((u) => u.id === userId);
+      if (!user) return;
+
+      const input = list.querySelector(`.admin-coin-input[data-userid="${userId}"]`);
+      const rawAmount = Number(input?.value || 0);
+      const amount = Math.floor(rawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        alert("Enter a valid positive coin amount.");
+        return;
+      }
+
+      if (amount > user.balance) {
+        alert(`${user.handle} only has ${Math.floor(user.balance)} coins available.`);
+        return;
+      }
+
+      user.manualCoinAdjustment = getUserManualCoinAdjustment(user) - amount;
+      user.balance = calculateUserBalanceFromBets(user);
+      persistState();
+      renderApp();
+
+      const syncedDbId = await syncUserToSupabase(user);
+      if (syncedDbId && !user.dbId) {
+        user.dbId = syncedDbId;
+        persistState();
+      }
+
+      setStatus("settings-status", `Removed ${amount} coins from ${user.handle}.`);
     });
   });
 
@@ -1034,7 +1059,7 @@ function recomputeUserBetDerivedFields(user) {
 
   user.betPoints = Math.max(0, Math.round(totalBetPoints));
   user.totalScore = (user.teamPoints || 0) + user.betPoints;
-  user.balance = Math.max(0, Math.floor(100 + (user.coinsEarnedFromTeams || 0) - totalWagered));
+  user.balance = Math.max(0, Math.floor(getUserBaseCoins(user) - totalWagered));
 }
 
 async function persistAdminBetAndUserChanges(user, betsToSync = [], deletedDbId = null) {
@@ -1412,6 +1437,7 @@ async function syncUserToSupabase(user) {
   try {
     const userData = {
       balance: user.balance ?? 100,
+      manual_coin_adjustment: getUserManualCoinAdjustment(user),
       total_score: user.totalScore ?? 0,
       team_points: user.teamPoints ?? 0,
       bet_points: user.betPoints ?? 0,
@@ -1570,6 +1596,7 @@ async function loadUsersFromSupabase() {
           // Update existing user with fresh DB values
           existingUser.dbId = dbUser.id;
           existingUser.balance = dbUser.balance ?? existingUser.balance;
+          existingUser.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? existingUser.manualCoinAdjustment ?? 0;
           existingUser.totalScore = dbUser.total_score ?? existingUser.totalScore;
           existingUser.teamPoints = dbUser.team_points ?? existingUser.teamPoints;
           existingUser.betPoints = dbUser.bet_points ?? existingUser.betPoints;
@@ -1585,6 +1612,7 @@ async function loadUsersFromSupabase() {
           const newUser = createNewUser(dbUser.handle);
           newUser.dbId = dbUser.id; // Store database UUID
           newUser.balance = dbUser.balance ?? 100;
+          newUser.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? 0;
           newUser.totalScore = dbUser.total_score ?? 0;
           newUser.teamPoints = dbUser.team_points ?? 0;
           newUser.betPoints = dbUser.bet_points ?? 0;
@@ -1956,6 +1984,7 @@ function syncUserRankingsWithTeamStats(options = {}) {
     if (user.teamPoints === undefined) user.teamPoints = 0;
     if (user.betPoints === undefined) user.betPoints = 0;
     if (user.coinsEarnedFromTeams === undefined) user.coinsEarnedFromTeams = 0;
+    if (user.manualCoinAdjustment === undefined) user.manualCoinAdjustment = 0;
     
     user.rankings.forEach(ranking => {
       const teamStats = state.data.teamStats[ranking.team];
@@ -1970,10 +1999,11 @@ function syncUserRankingsWithTeamStats(options = {}) {
     
     // Calculate coins earned from teams (10% of team points)
     const newCoinsFromTeams = Math.floor(newTeamPoints * 0.1);
-    const coinsDifference = newCoinsFromTeams - user.coinsEarnedFromTeams;
-    
-    // Add new coins to balance
-    user.balance += coinsDifference;
+    const nextUserState = {
+      ...user,
+      coinsEarnedFromTeams: newCoinsFromTeams
+    };
+    user.balance = calculateUserBalanceFromBets(nextUserState);
     user.coinsEarnedFromTeams = newCoinsFromTeams;
     user.teamPoints = newTeamPoints;
     
@@ -4313,6 +4343,7 @@ function createUser(handle) {
     id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     handle,
     balance: 100,
+    manualCoinAdjustment: 0,
     teamPoints: 0,
     betPoints: 0,
     totalScore: 0,
@@ -4335,6 +4366,7 @@ function createNewUser(handle) {
     id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     handle,
     balance: 100,
+    manualCoinAdjustment: 0,
     teamPoints: 0,
     betPoints: 0,
     totalScore: 0,
@@ -4347,6 +4379,22 @@ function createNewUser(handle) {
 
 function recalcScore(user) {
   return user.rankings.reduce((sum, team) => sum + team.goals * (team.wins + team.rankBonus), 0);
+}
+
+function getUserManualCoinAdjustment(user) {
+  return Number(user?.manualCoinAdjustment || 0);
+}
+
+function getUserBaseCoins(user) {
+  return 100 + Number(user?.coinsEarnedFromTeams || 0) + getUserManualCoinAdjustment(user);
+}
+
+function calculateUserBalanceFromBets(user, bets = state.data.bets) {
+  const totalWagered = (bets || [])
+    .filter((bet) => bet.userId === user.id)
+    .reduce((sum, bet) => sum + Number(bet.wager || 0), 0);
+
+  return Math.max(0, Math.floor(getUserBaseCoins(user) - totalWagered));
 }
 
 function seedHistory() {
