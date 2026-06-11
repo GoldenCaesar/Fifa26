@@ -307,15 +307,45 @@ if (!state.data.matches || state.data.matches.length === 0) {
 init();
 
 function startCountdown() {
-  // First World Cup 2026 match: June 11, 2026 at 11:00 UTC
-  const kickoffDate = new Date("2026-06-11T11:00:00Z");
+  // First World Cup 2026 match: June 12, 2026 at 19:00 UTC (12pm PDT)
+  const kickoffDate = new Date("2026-06-12T19:00:00Z");
+  
+  function getNextMatch() {
+    // Get the next match after the kickoff time
+    if (!state.data.matches || state.data.matches.length === 0) {
+      return null;
+    }
+    
+    // Find the first match with the earliest time after kickoff
+    const matchesAfterKickoff = state.data.matches
+      .filter(m => {
+        const matchDate = new Date(`${m.day}T${m.time}:00Z`);
+        return matchDate > kickoffDate;
+      })
+      .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+    
+    return matchesAfterKickoff.length > 0 ? matchesAfterKickoff[0] : null;
+  }
+  
+  function formatMatchDetails(match) {
+    if (!match) return null;
+    const pstTime = convertUtcToPst(match.time);
+    return `${match.home} vs ${match.away} • ${match.day} ${pstTime} PDT • ${match.group || match.round}`;
+  }
   
   function updateCountdown() {
     const now = new Date();
     const timeDiff = kickoffDate - now;
     
     if (timeDiff <= 0) {
-      document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
+      // Tournament has started, show next match
+      const nextMatch = getNextMatch();
+      if (nextMatch) {
+        const matchDetails = formatMatchDetails(nextMatch);
+        document.getElementById("countdown-display").innerHTML = `<div class="countdown-live">🎉 FIRST MATCH UNDERWAY! 🎉</div><div style="margin-top: 15px; font-size: 16px; color: #fff; text-align: center;">${matchDetails}</div>`;
+      } else {
+        document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
+      }
       if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
