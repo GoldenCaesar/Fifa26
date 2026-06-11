@@ -232,6 +232,19 @@ select {
   font-weight: 700;
 }
 
+/* On gold (rank1) and silver (rank2) backdrops, swap to dark text with gold shadow */
+.team-card.rank1 .my-pick,
+.team-card.rank2 .my-pick {
+  color: #1a1a1a;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.9), 0 1px 0 rgba(255,255,255,0.4);
+}
+
+/* On bronze (rank3) backdrop keep gold but add dark drop-shadow for legibility */
+.team-card.rank3 .my-pick {
+  color: var(--tertiary);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
 .countdown-live {
   font-family: "Oswald", sans-serif;
   font-size: 1.8rem;

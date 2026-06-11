@@ -363,6 +363,10 @@ function startCountdown() {
     const now = new Date();
     const matches = getSortedMatches();
 
+    // Reveal the clock on first tick (hidden initially to prevent stale-data flash)
+    const clockEl = document.getElementById("countdown-clock");
+    if (clockEl) clockEl.style.visibility = "visible";
+
     // Check if any match is currently live (started within the last 90 minutes)
     const liveMatch = matches.find(m => {
       const elapsed = now - m._date;
