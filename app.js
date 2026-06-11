@@ -307,15 +307,79 @@ if (!state.data.matches || state.data.matches.length === 0) {
 init();
 
 function startCountdown() {
-  // First World Cup 2026 match: June 11, 2026 at 11:00 UTC
-  const kickoffDate = new Date("2026-06-11T11:00:00Z");
+  // First World Cup 2026 match: June 12, 2026 at 19:00 UTC (12pm PDT)
+  const kickoffDate = new Date("2026-06-12T19:00:00Z");
+  
+  function getNextMatch() {
+    // Get the next match after the kickoff time
+    if (!state.data.matches || state.data.matches.length === 0) {
+      return null;
+    }
+    
+    // Find the first match with the earliest time after kickoff
+    const matchesAfterKickoff = state.data.matches
+      .filter(m => {
+        // Validate time format (HH:MM)
+        if (!m.day || !m.time || !/^\d{2}:\d{2}$/.test(m.time)) {
+          return false;
+        }
+        try {
+          const matchDate = new Date(`${m.day}T${m.time}:00Z`);
+          return !isNaN(matchDate.getTime()) && matchDate > kickoffDate;
+        } catch {
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        // Sort by date and time using proper Date objects for accuracy
+        const aDate = new Date(`${a.day}T${a.time}:00Z`);
+        const bDate = new Date(`${b.day}T${b.time}:00Z`);
+        return aDate - bDate;
+      });
+    
+    return matchesAfterKickoff.length > 0 ? matchesAfterKickoff[0] : null;
+  }
+  
+  function formatMatchDetails(match) {
+    if (!match) return null;
+    const pdtTime = convertUtcToPst(match.time);
+    
+    // Format date as "Month Day" (e.g., "June 12th")
+    const matchDate = new Date(`${match.day}T00:00:00Z`);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const month = monthNames[matchDate.getUTCMonth()];
+    const day = matchDate.getUTCDate();
+    
+    // Get ordinal suffix (st, nd, rd, th)
+    let suffix = "th";
+    if (day % 10 === 1 && day !== 11) suffix = "st";
+    else if (day % 10 === 2 && day !== 12) suffix = "nd";
+    else if (day % 10 === 3 && day !== 13) suffix = "rd";
+    
+    // Escape HTML to prevent XSS
+    const escapeHtml = (str) => {
+      if (!str) return "";
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    };
+    
+    return `${escapeHtml(match.home)} vs ${escapeHtml(match.away)} • ${month} ${day}${suffix} ${escapeHtml(pdtTime)} PDT • ${escapeHtml(match.group || match.round || "")}`;
+  }
   
   function updateCountdown() {
     const now = new Date();
     const timeDiff = kickoffDate - now;
     
     if (timeDiff <= 0) {
-      document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
+      // Tournament has started, show next match
+      const nextMatch = getNextMatch();
+      if (nextMatch) {
+        const matchDetails = formatMatchDetails(nextMatch);
+        document.getElementById("countdown-display").innerHTML = `<div class="countdown-live">🎉 FIRST MATCH UNDERWAY! 🎉</div><div class="countdown-next-match">${matchDetails}</div>`;
+      } else {
+        document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
+      }
       if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
