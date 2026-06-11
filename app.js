@@ -2791,12 +2791,12 @@ function getBetMultiplierForPick(match, pick, storedOdds) {
 
 function settleYesterdayBets(todayYmd) {
   const yesterday = shiftYmd(todayYmd, -1);
-  const yesterdayMatches = state.data.matches.filter((match) => match.day === yesterday);
 
   // Only generate random results when NOT connected to Supabase (offline/dev mode).
   // When connected, real results come from the sports API via the DB — we should
   // never overwrite a missing result with a fake one and settle bets incorrectly.
   if (!state.supabase) {
+    const yesterdayMatches = state.data.matches.filter((match) => match.day === yesterday);
     yesterdayMatches.forEach((match) => {
       if (!match.result) {
         match.result = randomResult(match.home, match.away);
@@ -2806,14 +2806,15 @@ function settleYesterdayBets(todayYmd) {
     });
   }
 
-  // Only settle bets whose match day is in the past (≤ yesterday).
-  // This prevents future matches with pre-populated API results from being
-  // settled early, and stops settlement logic from spilling onto wrong days.
+  // Settle bets for any match that is marked final and whose day is ≤ today.
+  // We use todayYmd (not yesterday) so that same-day matches (e.g. a match that
+  // finishes today and has already been marked "final" in the DB) get settled
+  // immediately when the admin runs the refresh, rather than waiting until tomorrow.
   state.data.bets
     .filter((bet) => bet.status === "active")
     .forEach((bet) => {
       const match = state.data.matches.find((entry) => entry.id === bet.matchId);
-      if (!match || !match.result || match.day > yesterday) return;
+      if (!match || !match.result || match.status !== "final" || match.day > todayYmd) return;
 
       const user = state.data.users.find((entry) => entry.id === bet.userId);
       if (!user) return;

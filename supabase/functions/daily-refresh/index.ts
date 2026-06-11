@@ -153,26 +153,28 @@ serve(async (req) => {
 });
 
 async function fetchAllWorldCupMatches(): Promise<any[]> {
-  const url = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${encodeURIComponent(
+  // Fetch upcoming odds
+  const oddsUrl = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds/?apiKey=${encodeURIComponent(
     ODDS_API_KEY
   )}&regions=us,eu&markets=h2h`;
   
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Odds API failed with status ${response.status}`);
+  const oddsResponse = await fetch(oddsUrl);
+  if (!oddsResponse.ok) {
+    throw new Error(`Odds API failed with status ${oddsResponse.status}`);
   }
   
-  const data = await response.json();
-  console.log(`Odds API returned ${data.length} matches`);
+  const oddsData = await oddsResponse.json();
+  console.log(`Odds API returned ${oddsData.length} upcoming matches`);
 
-  return data.map((item: any) => {
+  const matchMap = new Map<string, any>();
+
+  for (const item of oddsData) {
     const commenceDate = new Date(item.commence_time);
     const dayYmd = commenceDate.toISOString().split("T")[0];
     const hours = commenceDate.getUTCHours();
     const minutes = commenceDate.getUTCMinutes();
     const kickoffTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     
-    // Get best odds from first bookmaker
     const bookmaker = item.bookmakers?.[0];
     const h2hMarket = bookmaker?.markets?.find((m: any) => m.key === "h2h");
     const homeOutcome = h2hMarket?.outcomes?.find((o: any) => o.name === item.home_team);
@@ -189,9 +191,63 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
       status: "open",
       tournament_group: null
     };
+    matchMap.set(item.id, row);
+  }
 
-    return row;
-  });
+  // Fetch scores for recently completed matches (last 3 days covers same-day finishes)
+  try {
+    const scoresUrl = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/scores/?apiKey=${encodeURIComponent(
+      ODDS_API_KEY
+    )}&daysFrom=3`;
+    const scoresResponse = await fetch(scoresUrl);
+    if (scoresResponse.ok) {
+      const scoresData = await scoresResponse.json();
+      console.log(`Scores API returned ${scoresData.length} matches`);
+      for (const item of scoresData) {
+        const isCompleted = item.completed === true;
+        const commenceDate = new Date(item.commence_time);
+        const dayYmd = commenceDate.toISOString().split("T")[0];
+        const hours = commenceDate.getUTCHours();
+        const minutes = commenceDate.getUTCMinutes();
+        const kickoffTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+
+        const homeScore = item.scores?.find((s: any) => s.name === item.home_team);
+        const awayScore = item.scores?.find((s: any) => s.name === item.away_team);
+        const homeGoals = homeScore ? Number(homeScore.score) : null;
+        const awayGoals = awayScore ? Number(awayScore.score) : null;
+
+        const existing = matchMap.get(item.id) || {
+          id: `wc2026_${item.id}`,
+          day: dayYmd,
+          kickoff_time: kickoffTime,
+          home_team: item.home_team,
+          away_team: item.away_team,
+          odds_home: 2.0,
+          odds_away: 2.0,
+          tournament_group: null
+        };
+
+        if (isCompleted && homeGoals !== null && awayGoals !== null) {
+          existing.status = "final";
+          existing.result_home = homeGoals;
+          existing.result_away = awayGoals;
+          if (homeGoals > awayGoals) existing.winner = item.home_team;
+          else if (awayGoals > homeGoals) existing.winner = item.away_team;
+          else existing.winner = "draw";
+        } else if (!existing.status || existing.status === "open") {
+          existing.status = isCompleted ? "final" : "open";
+        }
+
+        matchMap.set(item.id, existing);
+      }
+    } else {
+      console.warn(`Scores API returned status ${scoresResponse.status} - skipping scores`);
+    }
+  } catch (err) {
+    console.warn("Could not fetch scores (non-fatal):", err);
+  }
+
+  return Array.from(matchMap.values());
 }
 
 async function fetchFromApiFootballWorldCup(): Promise<any[]> {
