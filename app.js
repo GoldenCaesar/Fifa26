@@ -2189,8 +2189,8 @@ function syncUserRankingsWithTeamStats(options = {}) {
     // Calculate team points from rankings
     const newTeamPoints = recalcScore(user);
     
-    // Calculate coins earned from teams (10% of team points)
-    const newCoinsFromTeams = Math.floor(newTeamPoints * 0.1);
+    // Calculate coins earned from teams (10% of team points, rounded up)
+    const newCoinsFromTeams = Math.ceil(newTeamPoints * 0.1);
     const nextUserState = {
       ...user,
       coinsEarnedFromTeams: newCoinsFromTeams
@@ -2810,6 +2810,9 @@ function settleYesterdayBets(todayYmd) {
   // We use todayYmd (not yesterday) so that same-day matches (e.g. a match that
   // finishes today and has already been marked "final" in the DB) get settled
   // immediately when the admin runs the refresh, rather than waiting until tomorrow.
+  const adminUser = state.data.users.find((u) => u.handle?.toLowerCase() === "admin");
+  let adminCoinsEarned = 0;
+
   state.data.bets
     .filter((bet) => bet.status === "active")
     .forEach((bet) => {
@@ -2846,9 +2849,20 @@ function settleYesterdayBets(todayYmd) {
         bet.settledAt = new Date().toISOString();
       }
       
+      // Admin earns the wagered coins for every settled bet (house collects all wagers)
+      adminCoinsEarned += Number(bet.wager || 0);
+
       // Sync settled bet to Supabase
       syncBetToSupabase(bet);
     });
+
+  // Credit admin with coins earned from settled bets
+  if (adminUser && adminCoinsEarned > 0) {
+    adminUser.coinsEarnedFromTeams = (adminUser.coinsEarnedFromTeams || 0) + adminCoinsEarned;
+    adminUser.balance = calculateUserBalanceFromBets(adminUser);
+    syncUserToSupabase(adminUser);
+    console.log(`Admin earned ${adminCoinsEarned} coins from settled bets`);
+  }
 }
 
 function recomputeLeaderboard() {
