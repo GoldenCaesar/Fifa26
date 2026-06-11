@@ -330,7 +330,12 @@ function startCountdown() {
           return false;
         }
       })
-      .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+      .sort((a, b) => {
+        // Sort by date and time using proper Date objects for accuracy
+        const aDate = new Date(`${a.day}T${a.time}:00Z`);
+        const bDate = new Date(`${b.day}T${b.time}:00Z`);
+        return aDate - bDate;
+      });
     
     return matchesAfterKickoff.length > 0 ? matchesAfterKickoff[0] : null;
   }
@@ -351,7 +356,15 @@ function startCountdown() {
     else if (day % 10 === 2 && day !== 12) suffix = "nd";
     else if (day % 10 === 3 && day !== 13) suffix = "rd";
     
-    return `${match.home} vs ${match.away} • ${month} ${day}${suffix} ${pdtTime} PDT • ${match.group || match.round}`;
+    // Escape HTML to prevent XSS
+    const escapeHtml = (str) => {
+      if (!str) return "";
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    };
+    
+    return `${escapeHtml(match.home)} vs ${escapeHtml(match.away)} • ${month} ${day}${suffix} ${pdtTime} PDT • ${escapeHtml(match.group || match.round || "")}`;
   }
   
   function updateCountdown() {
