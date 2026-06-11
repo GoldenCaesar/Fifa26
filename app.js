@@ -258,6 +258,26 @@ function sanitizeStateMatches() {
 let picksState = [];
 let countdownInterval = null;
 
+function escapeHtml(str) {
+  if (!str) return "";
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Returns a Set of team name strings that the current user has picked
+function myPickTeams() {
+  const user = getCurrentUser();
+  if (!user || !user.rankings || user.rankings.length === 0) return new Set();
+  return new Set(user.rankings.map(r => r.team));
+}
+
+// Wraps a team name in a gold <span> if it's one of the user's picks
+function teamHtml(name) {
+  const safe = escapeHtml(name);
+  return myPickTeams().has(name) ? `<span class="my-pick">${safe}</span>` : safe;
+}
+
 const state = {
   config: loadConfig(),
   data: loadState(),
@@ -307,97 +327,92 @@ if (!state.data.matches || state.data.matches.length === 0) {
 init();
 
 function startCountdown() {
-  // First World Cup 2026 match: June 12, 2026 at 19:00 UTC (12pm PDT)
-  const kickoffDate = new Date("2026-06-12T19:00:00Z");
-  
-  function getNextMatch() {
-    // Get the next match after the kickoff time
-    if (!state.data.matches || state.data.matches.length === 0) {
-      return null;
+  const MATCH_DURATION_MS = 90 * 60 * 1000; // 90 minutes
+
+  function getSortedMatches() {
+    if (!state.data.matches || state.data.matches.length === 0) return [];
+    return state.data.matches
+      .filter(m => m.day && m.time && /^\d{2}:\d{2}$/.test(m.time))
+      .map(m => ({ ...m, _date: new Date(`${m.day}T${m.time}:00Z`) }))
+      .filter(m => !isNaN(m._date.getTime()))
+      .sort((a, b) => a._date - b._date);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function restoreDigitDisplay() {
+    // Restore the digit countdown HTML if it was replaced by a live/message banner
+    if (!document.getElementById("days")) {
+      document.getElementById("countdown-display").innerHTML =
+        '<div class="countdown-unit"><span id="days" class="countdown-number">--</span><span class="countdown-text">Days</span></div>' +
+        '<div class="countdown-separator">:</div>' +
+        '<div class="countdown-unit"><span id="hours" class="countdown-number">--</span><span class="countdown-text">Hours</span></div>' +
+        '<div class="countdown-separator">:</div>' +
+        '<div class="countdown-unit"><span id="minutes" class="countdown-number">--</span><span class="countdown-text">Min</span></div>' +
+        '<div class="countdown-separator">:</div>' +
+        '<div class="countdown-unit"><span id="seconds" class="countdown-number">--</span><span class="countdown-text">Sec</span></div>';
     }
-    
-    // Find the first match with the earliest time after kickoff
-    const matchesAfterKickoff = state.data.matches
-      .filter(m => {
-        // Validate time format (HH:MM)
-        if (!m.day || !m.time || !/^\d{2}:\d{2}$/.test(m.time)) {
-          return false;
-        }
-        try {
-          const matchDate = new Date(`${m.day}T${m.time}:00Z`);
-          return !isNaN(matchDate.getTime()) && matchDate > kickoffDate;
-        } catch {
-          return false;
-        }
-      })
-      .sort((a, b) => {
-        // Sort by date and time using proper Date objects for accuracy
-        const aDate = new Date(`${a.day}T${a.time}:00Z`);
-        const bDate = new Date(`${b.day}T${b.time}:00Z`);
-        return aDate - bDate;
-      });
-    
-    return matchesAfterKickoff.length > 0 ? matchesAfterKickoff[0] : null;
   }
-  
-  function formatMatchDetails(match) {
-    if (!match) return null;
-    const pdtTime = convertUtcToPst(match.time);
-    
-    // Format date as "Month Day" (e.g., "June 12th")
-    const matchDate = new Date(`${match.day}T00:00:00Z`);
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const month = monthNames[matchDate.getUTCMonth()];
-    const day = matchDate.getUTCDate();
-    
-    // Get ordinal suffix (st, nd, rd, th)
-    let suffix = "th";
-    if (day % 10 === 1 && day !== 11) suffix = "st";
-    else if (day % 10 === 2 && day !== 12) suffix = "nd";
-    else if (day % 10 === 3 && day !== 13) suffix = "rd";
-    
-    // Escape HTML to prevent XSS
-    const escapeHtml = (str) => {
-      if (!str) return "";
-      const div = document.createElement("div");
-      div.textContent = str;
-      return div.innerHTML;
-    };
-    
-    return `${escapeHtml(match.home)} vs ${escapeHtml(match.away)} • ${month} ${day}${suffix} ${escapeHtml(pdtTime)} PDT • ${escapeHtml(match.group || match.round || "")}`;
-  }
-  
+
   function updateCountdown() {
     const now = new Date();
-    const timeDiff = kickoffDate - now;
-    
-    if (timeDiff <= 0) {
-      // Tournament has started, show next match
-      const nextMatch = getNextMatch();
-      if (nextMatch) {
-        const matchDetails = formatMatchDetails(nextMatch);
-        document.getElementById("countdown-display").innerHTML = `<div class="countdown-live">🎉 FIRST MATCH UNDERWAY! 🎉</div><div class="countdown-next-match">${matchDetails}</div>`;
-      } else {
-        document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
-      }
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
+    const matches = getSortedMatches();
+
+    // Check if any match is currently live (started within the last 90 minutes)
+    const liveMatch = matches.find(m => {
+      const elapsed = now - m._date;
+      return elapsed >= 0 && elapsed < MATCH_DURATION_MS;
+    });
+
+    if (liveMatch) {
+      const label = escapeHtml(liveMatch.group || liveMatch.round || "");
+      const home = escapeHtml(liveMatch.home);
+      const away = escapeHtml(liveMatch.away);
+      document.getElementById("countdown-display").innerHTML =
+        `<div class="countdown-live">⚽ ${home} vs ${away}${label ? " • " + label : ""} • LIVE</div>`;
+      const labelEl = document.getElementById("countdown-label");
+      if (labelEl) labelEl.textContent = "Now Playing";
       return;
     }
-    
+
+    // Find the next upcoming match
+    const nextMatch = matches.find(m => m._date > now);
+
+    if (!nextMatch) {
+      document.getElementById("countdown-display").innerHTML =
+        '<div class="countdown-live">🏆 TOURNAMENT COMPLETE! 🏆</div>';
+      const labelEl = document.getElementById("countdown-label");
+      if (labelEl) labelEl.textContent = "FIFA World Cup 2026";
+      return;
+    }
+
+    // Restore digit display if needed (e.g., transitioning from live → countdown)
+    restoreDigitDisplay();
+
+    const timeDiff = nextMatch._date - now;
     const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
-    
+
+    const labelEl = document.getElementById("countdown-label");
+    if (labelEl) {
+      const anyPast = matches.some(m => m._date <= now);
+      labelEl.textContent = anyPast ? "Next Match In" : "First Kickoff In";
+    }
+
     document.getElementById("days").textContent = String(days).padStart(2, "0");
     document.getElementById("hours").textContent = String(hours).padStart(2, "0");
     document.getElementById("minutes").textContent = String(minutes).padStart(2, "0");
     document.getElementById("seconds").textContent = String(seconds).padStart(2, "0");
   }
-  
+
+  if (countdownInterval) clearInterval(countdownInterval);
   updateCountdown();
   countdownInterval = setInterval(updateCountdown, 1000);
 }
@@ -3145,7 +3160,7 @@ function renderUpcomingMatches() {
     const pstTime = convertUtcToPst(match.time);
     
     card.innerHTML = `
-      <div class="match-teams">${match.home} <span style="color:var(--muted)">vs</span> ${match.away}</div>
+      <div class="match-teams">${teamHtml(match.home)} <span style="color:var(--muted)">vs</span> ${teamHtml(match.away)}</div>
       <div class="match-details">
         <span>${dateStr}</span>
         <span style="color:var(--muted)">&bull;</span>
@@ -3205,12 +3220,12 @@ function createBracketMatch(match) {
   
   card.innerHTML = `
     <div class="bracket-team ${winner === homeTeam ? 'winner' : ''}">
-      <span class="team-name">${homeTeam}</span>
+      <span class="team-name">${teamHtml(homeTeam)}</span>
       ${isComplete ? `<span class="team-score">${homeScore}</span>` : ''}
     </div>
     <div class="bracket-divider"></div>
     <div class="bracket-team ${winner === awayTeam ? 'winner' : ''}">
-      <span class="team-name">${awayTeam}</span>
+      <span class="team-name">${teamHtml(awayTeam)}</span>
       ${isComplete ? `<span class="team-score">${awayScore}</span>` : ''}
     </div>
     ${!isComplete && match.status !== "scheduled" ? `<div class="bracket-status">${match.status.toUpperCase()}</div>` : ''}
@@ -3245,7 +3260,7 @@ function renderRankings() {
     const card = document.createElement("div");
     card.className = `team-card ${rankClass}`;
     card.innerHTML = `
-      <div class="meta"><strong>${team.team}</strong><span>Rank ${team.rank} • +${team.rankBonus}</span></div>
+      <div class="meta"><strong>${teamHtml(team.team)}</strong><span>Rank ${team.rank} • +${team.rankBonus}</span></div>
       <div class="flow">
         <span>${team.goals} Goals</span>
         <span>x</span>
@@ -3438,7 +3453,7 @@ function renderMatches() {
       card.innerHTML = `
         <div class="bet-head">
           <div>
-            <div class="teams-line">${match.home} vs ${match.away}</div>
+            <div class="teams-line">${teamHtml(match.home)} vs ${teamHtml(match.away)}</div>
             <small>${dateStr} ${pstTime} PST ${groupOrRound ? `• ${groupOrRound}` : ''}</small>
           </div>
           <span>${match.status.toUpperCase()}</span>
@@ -3477,10 +3492,10 @@ function renderMatches() {
         
         oddsRow.innerHTML = `
           <button class="odds-btn" data-pick="${match.home}" data-odds="${betMultipliers.home}">
-            ${match.home} ${betMultipliers.home.toFixed(2)}x${homeLabel} <span style="opacity:0.8">(${homeWinChance}% win)</span>
+            ${teamHtml(match.home)} ${betMultipliers.home.toFixed(2)}x${homeLabel} <span style="opacity:0.8">(${homeWinChance}% win)</span>
           </button>
           <button class="odds-btn" data-pick="${match.away}" data-odds="${betMultipliers.away}">
-            ${match.away} ${betMultipliers.away.toFixed(2)}x${awayLabel} <span style="opacity:0.8">(${awayWinChance}% win)</span>
+            ${teamHtml(match.away)} ${betMultipliers.away.toFixed(2)}x${awayLabel} <span style="opacity:0.8">(${awayWinChance}% win)</span>
           </button>
         `;
         
@@ -3809,7 +3824,8 @@ function renderHistory() {
     if (bet.outcome === "loss") result = `-${bet.wager} coins lost`;
 
     const textSpan = document.createElement("span");
-    textSpan.textContent = `Wagered ${bet.wager} coins on ${bet.pick} in ${versus} → ${result}`;
+    const versusHtml = match ? `${teamHtml(match.home)} vs ${teamHtml(match.away)}` : "Unknown match";
+    textSpan.innerHTML = `Wagered ${escapeHtml(String(bet.wager))} coins on ${teamHtml(bet.pick)} in ${versusHtml} → ${escapeHtml(result)}`;
     row.appendChild(textSpan);
     
     // Add delete button for active bets if match is not today
@@ -3865,7 +3881,7 @@ function renderGroups() {
         const gd = item.goalsFor - item.goalsAgainst;
         const gdStr = gd > 0 ? `+${gd}` : gd;
         return `<li>
-          <span style="flex:1">${item.team}</span>
+          <span style="flex:1">${teamHtml(item.team)}</span>
           <strong style="min-width:30px;text-align:center">${item.points} pts</strong>
           <span style="min-width:60px;text-align:center;color:var(--muted);font-size:0.9em">${item.wins}-${item.draws}-${item.losses}</span>
         </li>`;
@@ -3903,6 +3919,7 @@ function renderHomeGroups() {
         return { team, ...stats };
       })
       .sort((a, b) => {
+        // renderHomeGroups sort
         // Sort by points, then goal difference, then goals scored
         if (b.points !== a.points) return b.points - a.points;
         const gdA = a.goalsFor - a.goalsAgainst;
@@ -3916,7 +3933,7 @@ function renderHomeGroups() {
         const gd = item.goalsFor - item.goalsAgainst;
         const gdStr = gd > 0 ? `+${gd}` : gd;
         return `<li>
-          <span style="flex:1">${item.team}</span>
+          <span style="flex:1">${teamHtml(item.team)}</span>
           <strong style="min-width:30px;text-align:center">${item.points} pts</strong>
           <span style="min-width:60px;text-align:center;color:var(--muted);font-size:0.9em">${item.wins}-${item.draws}-${item.losses}</span>
         </li>`;

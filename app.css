@@ -226,6 +226,12 @@ select {
   text-transform: uppercase;
 }
 
+/* My-pick team highlight — gold across all views */
+.my-pick {
+  color: var(--tertiary);
+  font-weight: 700;
+}
+
 .countdown-live {
   font-family: "Oswald", sans-serif;
   font-size: 1.8rem;
