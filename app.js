@@ -319,8 +319,16 @@ function startCountdown() {
     // Find the first match with the earliest time after kickoff
     const matchesAfterKickoff = state.data.matches
       .filter(m => {
-        const matchDate = new Date(`${m.day}T${m.time}:00Z`);
-        return matchDate > kickoffDate;
+        // Validate time format (HH:MM)
+        if (!m.day || !m.time || !/^\d{2}:\d{2}$/.test(m.time)) {
+          return false;
+        }
+        try {
+          const matchDate = new Date(`${m.day}T${m.time}:00Z`);
+          return !isNaN(matchDate.getTime()) && matchDate > kickoffDate;
+        } catch {
+          return false;
+        }
       })
       .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
     
@@ -329,7 +337,7 @@ function startCountdown() {
   
   function formatMatchDetails(match) {
     if (!match) return null;
-    const pstTime = convertUtcToPst(match.time);
+    const pdtTime = convertUtcToPst(match.time);
     
     // Format date as "Month Day" (e.g., "June 12th")
     const matchDate = new Date(`${match.day}T00:00:00Z`);
@@ -343,7 +351,7 @@ function startCountdown() {
     else if (day % 10 === 2 && day !== 12) suffix = "nd";
     else if (day % 10 === 3 && day !== 13) suffix = "rd";
     
-    return `${match.home} vs ${match.away} • ${month} ${day}${suffix} ${pstTime} PDT • ${match.group || match.round}`;
+    return `${match.home} vs ${match.away} • ${month} ${day}${suffix} ${pdtTime} PDT • ${match.group || match.round}`;
   }
   
   function updateCountdown() {
