@@ -53,6 +53,113 @@ let WC_2026_GROUPS = {
 
 const OFFICIAL_WC_2026_GROUPS = JSON.parse(JSON.stringify(WC_2026_GROUPS));
 
+// Official FIFA World Cup 2026 group stage schedule (UTC dates and times).
+// Each group has 6 entries (idx 0-5) matching the round-robin order:
+//   idx 0: teams[0] vs teams[1]  (Matchday 1, match 1)
+//   idx 1: teams[2] vs teams[3]  (Matchday 1, match 2)
+//   idx 2: teams[0] vs teams[2]  (Matchday 2, match 1)
+//   idx 3: teams[1] vs teams[3]  (Matchday 2, match 2)
+//   idx 4: teams[3] vs teams[0]  (Matchday 3, match 1)
+//   idx 5: teams[1] vs teams[2]  (Matchday 3, match 2)
+const WC2026_GROUP_DATETIMES = {
+  "A": [
+    { day: "2026-06-11", time: "19:00" },
+    { day: "2026-06-12", time: "02:00" },
+    { day: "2026-06-19", time: "01:00" },
+    { day: "2026-06-18", time: "16:00" },
+    { day: "2026-06-25", time: "01:00" },
+    { day: "2026-06-25", time: "01:00" },
+  ],
+  "B": [
+    { day: "2026-06-12", time: "19:00" },
+    { day: "2026-06-13", time: "19:00" },
+    { day: "2026-06-18", time: "22:00" },
+    { day: "2026-06-18", time: "19:00" },
+    { day: "2026-06-24", time: "19:00" },
+    { day: "2026-06-24", time: "19:00" },
+  ],
+  "C": [
+    { day: "2026-06-13", time: "22:00" },
+    { day: "2026-06-14", time: "01:00" },
+    { day: "2026-06-20", time: "00:30" },
+    { day: "2026-06-19", time: "22:00" },
+    { day: "2026-06-24", time: "22:00" },
+    { day: "2026-06-24", time: "22:00" },
+  ],
+  "D": [
+    { day: "2026-06-13", time: "01:00" },
+    { day: "2026-06-14", time: "04:00" },
+    { day: "2026-06-19", time: "19:00" },
+    { day: "2026-06-20", time: "03:00" },
+    { day: "2026-06-26", time: "02:00" },
+    { day: "2026-06-26", time: "02:00" },
+  ],
+  "E": [
+    { day: "2026-06-14", time: "17:00" },
+    { day: "2026-06-14", time: "23:00" },
+    { day: "2026-06-20", time: "20:00" },
+    { day: "2026-06-21", time: "00:00" },
+    { day: "2026-06-25", time: "20:00" },
+    { day: "2026-06-25", time: "20:00" },
+  ],
+  "F": [
+    { day: "2026-06-14", time: "20:00" },
+    { day: "2026-06-15", time: "02:00" },
+    { day: "2026-06-20", time: "17:00" },
+    { day: "2026-06-21", time: "04:00" },
+    { day: "2026-06-25", time: "23:00" },
+    { day: "2026-06-25", time: "23:00" },
+  ],
+  "G": [
+    { day: "2026-06-15", time: "19:00" },
+    { day: "2026-06-16", time: "01:00" },
+    { day: "2026-06-21", time: "19:00" },
+    { day: "2026-06-22", time: "01:00" },
+    { day: "2026-06-27", time: "03:00" },
+    { day: "2026-06-27", time: "03:00" },
+  ],
+  "H": [
+    { day: "2026-06-15", time: "16:00" },
+    { day: "2026-06-15", time: "22:00" },
+    { day: "2026-06-21", time: "16:00" },
+    { day: "2026-06-21", time: "22:00" },
+    { day: "2026-06-27", time: "00:00" },
+    { day: "2026-06-27", time: "00:00" },
+  ],
+  "I": [
+    { day: "2026-06-16", time: "19:00" },
+    { day: "2026-06-16", time: "22:00" },
+    { day: "2026-06-22", time: "21:00" },
+    { day: "2026-06-23", time: "00:00" },
+    { day: "2026-06-26", time: "19:00" },
+    { day: "2026-06-26", time: "19:00" },
+  ],
+  "J": [
+    { day: "2026-06-17", time: "01:00" },
+    { day: "2026-06-17", time: "04:00" },
+    { day: "2026-06-22", time: "17:00" },
+    { day: "2026-06-23", time: "03:00" },
+    { day: "2026-06-28", time: "02:00" },
+    { day: "2026-06-28", time: "02:00" },
+  ],
+  "K": [
+    { day: "2026-06-17", time: "17:00" },
+    { day: "2026-06-18", time: "02:00" },
+    { day: "2026-06-23", time: "17:00" },
+    { day: "2026-06-24", time: "02:00" },
+    { day: "2026-06-27", time: "23:30" },
+    { day: "2026-06-27", time: "23:30" },
+  ],
+  "L": [
+    { day: "2026-06-17", time: "20:00" },
+    { day: "2026-06-17", time: "23:00" },
+    { day: "2026-06-23", time: "20:00" },
+    { day: "2026-06-23", time: "23:00" },
+    { day: "2026-06-27", time: "21:00" },
+    { day: "2026-06-27", time: "21:00" },
+  ],
+};
+
 // Full FIFA World Cup 2026 team roster (alphabetical - 48 teams)
 let WC_TEAMS = [
   "Algeria", "Argentina", "Australia", "Austria", "Belgium", "Bosnia and Herzegovina",
@@ -4238,113 +4345,6 @@ function getWorldCup2026Matches(dayYmd) {
   const allMatches = generateWorldCup2026Schedule();
   return allMatches.filter(match => match.day === dayYmd);
 }
-
-// Official FIFA World Cup 2026 group stage schedule (UTC dates and times).
-// Each group has 6 entries (idx 0-5) matching the round-robin order:
-//   idx 0: teams[0] vs teams[1]  (Matchday 1, match 1)
-//   idx 1: teams[2] vs teams[3]  (Matchday 1, match 2)
-//   idx 2: teams[0] vs teams[2]  (Matchday 2, match 1)
-//   idx 3: teams[1] vs teams[3]  (Matchday 2, match 2)
-//   idx 4: teams[3] vs teams[0]  (Matchday 3, match 1)
-//   idx 5: teams[1] vs teams[2]  (Matchday 3, match 2)
-const WC2026_GROUP_DATETIMES = {
-  "A": [
-    { day: "2026-06-11", time: "19:00" },
-    { day: "2026-06-12", time: "02:00" },
-    { day: "2026-06-19", time: "01:00" },
-    { day: "2026-06-18", time: "16:00" },
-    { day: "2026-06-25", time: "01:00" },
-    { day: "2026-06-25", time: "01:00" },
-  ],
-  "B": [
-    { day: "2026-06-12", time: "19:00" },
-    { day: "2026-06-13", time: "19:00" },
-    { day: "2026-06-18", time: "22:00" },
-    { day: "2026-06-18", time: "19:00" },
-    { day: "2026-06-24", time: "19:00" },
-    { day: "2026-06-24", time: "19:00" },
-  ],
-  "C": [
-    { day: "2026-06-13", time: "22:00" },
-    { day: "2026-06-14", time: "01:00" },
-    { day: "2026-06-20", time: "00:30" },
-    { day: "2026-06-19", time: "22:00" },
-    { day: "2026-06-24", time: "22:00" },
-    { day: "2026-06-24", time: "22:00" },
-  ],
-  "D": [
-    { day: "2026-06-13", time: "01:00" },
-    { day: "2026-06-14", time: "04:00" },
-    { day: "2026-06-19", time: "19:00" },
-    { day: "2026-06-20", time: "03:00" },
-    { day: "2026-06-26", time: "02:00" },
-    { day: "2026-06-26", time: "02:00" },
-  ],
-  "E": [
-    { day: "2026-06-14", time: "17:00" },
-    { day: "2026-06-14", time: "23:00" },
-    { day: "2026-06-20", time: "20:00" },
-    { day: "2026-06-21", time: "00:00" },
-    { day: "2026-06-25", time: "20:00" },
-    { day: "2026-06-25", time: "20:00" },
-  ],
-  "F": [
-    { day: "2026-06-14", time: "20:00" },
-    { day: "2026-06-15", time: "02:00" },
-    { day: "2026-06-20", time: "17:00" },
-    { day: "2026-06-21", time: "04:00" },
-    { day: "2026-06-25", time: "23:00" },
-    { day: "2026-06-25", time: "23:00" },
-  ],
-  "G": [
-    { day: "2026-06-15", time: "19:00" },
-    { day: "2026-06-16", time: "01:00" },
-    { day: "2026-06-21", time: "19:00" },
-    { day: "2026-06-22", time: "01:00" },
-    { day: "2026-06-27", time: "03:00" },
-    { day: "2026-06-27", time: "03:00" },
-  ],
-  "H": [
-    { day: "2026-06-15", time: "16:00" },
-    { day: "2026-06-15", time: "22:00" },
-    { day: "2026-06-21", time: "16:00" },
-    { day: "2026-06-21", time: "22:00" },
-    { day: "2026-06-27", time: "00:00" },
-    { day: "2026-06-27", time: "00:00" },
-  ],
-  "I": [
-    { day: "2026-06-16", time: "19:00" },
-    { day: "2026-06-16", time: "22:00" },
-    { day: "2026-06-22", time: "21:00" },
-    { day: "2026-06-23", time: "00:00" },
-    { day: "2026-06-26", time: "19:00" },
-    { day: "2026-06-26", time: "19:00" },
-  ],
-  "J": [
-    { day: "2026-06-17", time: "01:00" },
-    { day: "2026-06-17", time: "04:00" },
-    { day: "2026-06-22", time: "17:00" },
-    { day: "2026-06-23", time: "03:00" },
-    { day: "2026-06-28", time: "02:00" },
-    { day: "2026-06-28", time: "02:00" },
-  ],
-  "K": [
-    { day: "2026-06-17", time: "17:00" },
-    { day: "2026-06-18", time: "02:00" },
-    { day: "2026-06-23", time: "17:00" },
-    { day: "2026-06-24", time: "02:00" },
-    { day: "2026-06-27", time: "23:30" },
-    { day: "2026-06-27", time: "23:30" },
-  ],
-  "L": [
-    { day: "2026-06-17", time: "20:00" },
-    { day: "2026-06-17", time: "23:00" },
-    { day: "2026-06-23", time: "20:00" },
-    { day: "2026-06-23", time: "23:00" },
-    { day: "2026-06-27", time: "21:00" },
-    { day: "2026-06-27", time: "21:00" },
-  ],
-};
 
 function generateWorldCup2026Schedule() {
   const matches = [];
