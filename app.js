@@ -330,7 +330,20 @@ function startCountdown() {
   function formatMatchDetails(match) {
     if (!match) return null;
     const pstTime = convertUtcToPst(match.time);
-    return `${match.home} vs ${match.away} • ${match.day} ${pstTime} PDT • ${match.group || match.round}`;
+    
+    // Format date as "Month Day" (e.g., "June 12th")
+    const matchDate = new Date(`${match.day}T00:00:00Z`);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const month = monthNames[matchDate.getUTCMonth()];
+    const day = matchDate.getUTCDate();
+    
+    // Get ordinal suffix (st, nd, rd, th)
+    let suffix = "th";
+    if (day % 10 === 1 && day !== 11) suffix = "st";
+    else if (day % 10 === 2 && day !== 12) suffix = "nd";
+    else if (day % 10 === 3 && day !== 13) suffix = "rd";
+    
+    return `${match.home} vs ${match.away} • ${month} ${day}${suffix} ${pstTime} PDT • ${match.group || match.round}`;
   }
   
   function updateCountdown() {
