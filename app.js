@@ -3155,10 +3155,9 @@ function renderUpcomingMatches() {
     card.style.cursor = "pointer";
     card.title = "Click to search live score on Google";
     
-    // Format date nicely - parse as local date, not UTC
-    const [year, month, day] = match.day.split("-");
-    const matchDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    // Format date nicely - derive display date from UTC timestamp in PDT timezone
+    const matchDate = new Date(`${match.day}T${match.time}:00Z`);
+    const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Los_Angeles" });
     
     // Convert UTC time to PST
     const pstTime = convertUtcToPst(match.time);
@@ -3447,10 +3446,9 @@ function renderMatches() {
 
       const liveUrl = `https://www.google.com/search?q=${encodeURIComponent(`${match.home} vs ${match.away} live score`)}`;
       
-      // Format date nicely - parse as local date, not UTC
-      const [year, month, day] = match.day.split("-");
-      const matchDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
+      // Format date nicely - derive display date from UTC timestamp in PDT timezone
+      const matchDate = new Date(`${match.day}T${match.time}:00Z`);
+      const dateStr = matchDate.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short", timeZone: "America/Los_Angeles" });
       const pstTime = convertUtcToPst(match.time);
       const groupOrRound = match.group || match.round || "";
 
@@ -4241,13 +4239,118 @@ function getWorldCup2026Matches(dayYmd) {
   return allMatches.filter(match => match.day === dayYmd);
 }
 
+// Official FIFA World Cup 2026 group stage schedule (UTC dates and times).
+// Each group has 6 entries (idx 0-5) matching the round-robin order:
+//   idx 0: teams[0] vs teams[1]  (Matchday 1, match 1)
+//   idx 1: teams[2] vs teams[3]  (Matchday 1, match 2)
+//   idx 2: teams[0] vs teams[2]  (Matchday 2, match 1)
+//   idx 3: teams[1] vs teams[3]  (Matchday 2, match 2)
+//   idx 4: teams[3] vs teams[0]  (Matchday 3, match 1)
+//   idx 5: teams[1] vs teams[2]  (Matchday 3, match 2)
+const WC2026_GROUP_DATETIMES = {
+  "A": [
+    { day: "2026-06-11", time: "19:00" },
+    { day: "2026-06-12", time: "02:00" },
+    { day: "2026-06-19", time: "01:00" },
+    { day: "2026-06-18", time: "16:00" },
+    { day: "2026-06-25", time: "01:00" },
+    { day: "2026-06-25", time: "01:00" },
+  ],
+  "B": [
+    { day: "2026-06-12", time: "19:00" },
+    { day: "2026-06-13", time: "19:00" },
+    { day: "2026-06-18", time: "22:00" },
+    { day: "2026-06-18", time: "19:00" },
+    { day: "2026-06-24", time: "19:00" },
+    { day: "2026-06-24", time: "19:00" },
+  ],
+  "C": [
+    { day: "2026-06-13", time: "22:00" },
+    { day: "2026-06-14", time: "01:00" },
+    { day: "2026-06-20", time: "00:30" },
+    { day: "2026-06-19", time: "22:00" },
+    { day: "2026-06-24", time: "22:00" },
+    { day: "2026-06-24", time: "22:00" },
+  ],
+  "D": [
+    { day: "2026-06-13", time: "01:00" },
+    { day: "2026-06-14", time: "04:00" },
+    { day: "2026-06-19", time: "19:00" },
+    { day: "2026-06-20", time: "03:00" },
+    { day: "2026-06-26", time: "02:00" },
+    { day: "2026-06-26", time: "02:00" },
+  ],
+  "E": [
+    { day: "2026-06-14", time: "17:00" },
+    { day: "2026-06-14", time: "23:00" },
+    { day: "2026-06-20", time: "20:00" },
+    { day: "2026-06-21", time: "00:00" },
+    { day: "2026-06-25", time: "20:00" },
+    { day: "2026-06-25", time: "20:00" },
+  ],
+  "F": [
+    { day: "2026-06-14", time: "20:00" },
+    { day: "2026-06-15", time: "02:00" },
+    { day: "2026-06-20", time: "17:00" },
+    { day: "2026-06-21", time: "04:00" },
+    { day: "2026-06-25", time: "23:00" },
+    { day: "2026-06-25", time: "23:00" },
+  ],
+  "G": [
+    { day: "2026-06-15", time: "19:00" },
+    { day: "2026-06-16", time: "01:00" },
+    { day: "2026-06-21", time: "19:00" },
+    { day: "2026-06-22", time: "01:00" },
+    { day: "2026-06-27", time: "03:00" },
+    { day: "2026-06-27", time: "03:00" },
+  ],
+  "H": [
+    { day: "2026-06-15", time: "16:00" },
+    { day: "2026-06-15", time: "22:00" },
+    { day: "2026-06-21", time: "16:00" },
+    { day: "2026-06-21", time: "22:00" },
+    { day: "2026-06-27", time: "00:00" },
+    { day: "2026-06-27", time: "00:00" },
+  ],
+  "I": [
+    { day: "2026-06-16", time: "19:00" },
+    { day: "2026-06-16", time: "22:00" },
+    { day: "2026-06-22", time: "21:00" },
+    { day: "2026-06-23", time: "00:00" },
+    { day: "2026-06-26", time: "19:00" },
+    { day: "2026-06-26", time: "19:00" },
+  ],
+  "J": [
+    { day: "2026-06-17", time: "01:00" },
+    { day: "2026-06-17", time: "04:00" },
+    { day: "2026-06-22", time: "17:00" },
+    { day: "2026-06-23", time: "03:00" },
+    { day: "2026-06-28", time: "02:00" },
+    { day: "2026-06-28", time: "02:00" },
+  ],
+  "K": [
+    { day: "2026-06-17", time: "17:00" },
+    { day: "2026-06-18", time: "02:00" },
+    { day: "2026-06-23", time: "17:00" },
+    { day: "2026-06-24", time: "02:00" },
+    { day: "2026-06-27", time: "23:30" },
+    { day: "2026-06-27", time: "23:30" },
+  ],
+  "L": [
+    { day: "2026-06-17", time: "20:00" },
+    { day: "2026-06-17", time: "23:00" },
+    { day: "2026-06-23", time: "20:00" },
+    { day: "2026-06-23", time: "23:00" },
+    { day: "2026-06-27", time: "21:00" },
+    { day: "2026-06-27", time: "21:00" },
+  ],
+};
+
 function generateWorldCup2026Schedule() {
   const matches = [];
-  let matchId = 0;
-  
-  // GROUP STAGE: June 11-26, 2026 (72 matches total)
+
+  // GROUP STAGE: June 11-27, 2026 (72 matches total) — Official FIFA schedule dates (UTC)
   Object.entries(WC_2026_GROUPS).forEach(([groupLetter, teams]) => {
-    // Each group plays 6 matches (round-robin)
     const groupMatches = [
       { home: teams[0], away: teams[1] },
       { home: teams[2], away: teams[3] },
@@ -4256,17 +4359,18 @@ function generateWorldCup2026Schedule() {
       { home: teams[3], away: teams[0] },
       { home: teams[1], away: teams[2] },
     ];
-    
+
+    const groupSchedule = WC2026_GROUP_DATETIMES[groupLetter];
+
     groupMatches.forEach((match, idx) => {
-      const dayOffset = Math.floor(matchId / 8); // 8 matches per day
-      const slotInDay = matchId % 8;
-      const matchTime = ["12:00", "15:00", "18:00", "19:00", "12:00", "15:00", "18:00", "19:00"][slotInDay];
-      const date = shiftYmd("2026-06-11", dayOffset);
-      
+      const dt = groupSchedule
+        ? groupSchedule[idx]
+        : { day: shiftYmd("2026-06-11", idx), time: "19:00" };
+
       matches.push({
         id: `wc2026_gs_${groupLetter}${idx}`,
-        day: date,
-        time: matchTime,
+        day: dt.day,
+        time: dt.time,
         home: match.home,
         away: match.away,
         group: `Group ${groupLetter}`,
@@ -4275,21 +4379,21 @@ function generateWorldCup2026Schedule() {
           home: Number((1.5 + Math.random() * 1.0).toFixed(2)),
           away: Number((1.5 + Math.random() * 1.0).toFixed(2))
         },
-        status: "open",  // Changed from "scheduled" to "open" so betting is available
+        status: "open",
         result: null
       });
-      
-      matchId++;
     });
   });
   
-  // ROUND OF 32: June 28-30, 2026 (16 matches)
-  const r32Dates = ["2026-06-28", "2026-06-28", "2026-06-29", "2026-06-29", 
-                    "2026-06-29", "2026-06-29", "2026-06-30", "2026-06-30",
-                    "2026-06-30", "2026-06-30", "2026-06-28", "2026-06-28",
-                    "2026-06-29", "2026-06-29", "2026-06-30", "2026-06-30"];
-  const r32Times = ["15:00", "19:00", "15:00", "19:00", "15:00", "19:00", "15:00", "19:00",
-                    "15:00", "19:00", "11:00", "13:00", "11:00", "13:00", "11:00", "13:00"];
+  // ROUND OF 32: June 28 - July 3, 2026 (16 matches) — Official FIFA schedule (UTC)
+  const r32Dates = ["2026-06-28", "2026-06-29", "2026-06-30", "2026-06-29",
+                    "2026-06-30", "2026-06-30", "2026-07-01", "2026-07-01",
+                    "2026-07-02", "2026-07-02", "2026-07-02", "2026-07-03",
+                    "2026-07-03", "2026-07-03", "2026-07-01", "2026-07-04"];
+  const r32Times = ["19:00", "17:00", "01:00", "20:30",
+                    "17:00", "21:00", "16:00", "00:00",
+                    "19:00", "23:00", "03:00", "18:00",
+                    "22:00", "01:30", "20:00", "01:30"];
   
   for (let i = 0; i < 16; i++) {
     matches.push({
@@ -4306,10 +4410,11 @@ function generateWorldCup2026Schedule() {
     });
   }
   
-  // ROUND OF 16: July 2-5, 2026 (8 matches)
-  const r16Dates = ["2026-07-02", "2026-07-02", "2026-07-03", "2026-07-03",
-                    "2026-07-04", "2026-07-04", "2026-07-05", "2026-07-05"];
-  const r16Times = ["15:00", "19:00", "15:00", "19:00", "15:00", "19:00", "15:00", "19:00"];
+  // ROUND OF 16: July 4-7, 2026 (8 matches) — Official FIFA schedule (UTC)
+  const r16Dates = ["2026-07-04", "2026-07-04", "2026-07-05", "2026-07-06",
+                    "2026-07-06", "2026-07-07", "2026-07-07", "2026-07-05"];
+  const r16Times = ["17:00", "21:00", "20:00", "19:00",
+                    "00:00", "16:00", "20:00", "00:00"];
   
   for (let i = 0; i < 8; i++) {
     matches.push({
@@ -4326,26 +4431,26 @@ function generateWorldCup2026Schedule() {
     });
   }
   
-  // QUARTERFINALS: July 8-9, 2026 (4 matches)
+  // QUARTERFINALS: July 9-11, 2026 (4 matches) — Official FIFA schedule (UTC)
   matches.push(
-    { id: "wc2026_qf_1", day: "2026-07-08", time: "15:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF1", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_qf_2", day: "2026-07-08", time: "19:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF2", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_qf_3", day: "2026-07-09", time: "15:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF3", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_qf_4", day: "2026-07-09", time: "19:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF4", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
+    { id: "wc2026_qf_1", day: "2026-07-09", time: "20:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF1", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
+    { id: "wc2026_qf_2", day: "2026-07-10", time: "19:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF2", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
+    { id: "wc2026_qf_3", day: "2026-07-11", time: "21:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF3", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
+    { id: "wc2026_qf_4", day: "2026-07-12", time: "01:00", home: "TBD", away: "TBD", round: "Quarterfinals", matchup: "QF4", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
   );
   
-  // SEMIFINALS: July 12-13, 2026 (2 matches)
+  // SEMIFINALS: July 14-15, 2026 (2 matches) — Official FIFA schedule (UTC)
   matches.push(
-    { id: "wc2026_sf_1", day: "2026-07-12", time: "19:00", home: "TBD", away: "TBD", round: "Semifinals", matchup: "SF1", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
-    { id: "wc2026_sf_2", day: "2026-07-13", time: "19:00", home: "TBD", away: "TBD", round: "Semifinals", matchup: "SF2", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
+    { id: "wc2026_sf_1", day: "2026-07-14", time: "19:00", home: "TBD", away: "TBD", round: "Semifinals", matchup: "SF1", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null },
+    { id: "wc2026_sf_2", day: "2026-07-15", time: "19:00", home: "TBD", away: "TBD", round: "Semifinals", matchup: "SF2", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
   );
   
-  // THIRD PLACE: July 17, 2026
+  // THIRD PLACE: July 18, 2026 (UTC)
   matches.push(
-    { id: "wc2026_3rd", day: "2026-07-17", time: "15:00", home: "TBD", away: "TBD", round: "Third Place", matchup: "3rd Place", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
+    { id: "wc2026_3rd", day: "2026-07-18", time: "21:00", home: "TBD", away: "TBD", round: "Third Place", matchup: "3rd Place", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
   );
   
-  // FINAL: July 19, 2026
+  // FINAL: July 19, 2026 (UTC)
   matches.push(
     { id: "wc2026_final", day: "2026-07-19", time: "19:00", home: "TBD", away: "TBD", round: "Final", matchup: "Final", odds: { home: 2.0, away: 2.0 }, status: "scheduled", result: null }
   );
