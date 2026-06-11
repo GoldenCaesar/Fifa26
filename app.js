@@ -364,7 +364,7 @@ function startCountdown() {
       return div.innerHTML;
     };
     
-    return `${escapeHtml(match.home)} vs ${escapeHtml(match.away)} • ${month} ${day}${suffix} ${pdtTime} PDT • ${escapeHtml(match.group || match.round || "")}`;
+    return `${escapeHtml(match.home)} vs ${escapeHtml(match.away)} • ${month} ${day}${suffix} ${escapeHtml(pdtTime)} PDT • ${escapeHtml(match.group || match.round || "")}`;
   }
   
   function updateCountdown() {
@@ -376,7 +376,7 @@ function startCountdown() {
       const nextMatch = getNextMatch();
       if (nextMatch) {
         const matchDetails = formatMatchDetails(nextMatch);
-        document.getElementById("countdown-display").innerHTML = `<div class="countdown-live">🎉 FIRST MATCH UNDERWAY! 🎉</div><div style="margin-top: 15px; font-size: 16px; color: #fff; text-align: center;">${matchDetails}</div>`;
+        document.getElementById("countdown-display").innerHTML = `<div class="countdown-live">🎉 FIRST MATCH UNDERWAY! 🎉</div><div class="countdown-next-match">${matchDetails}</div>`;
       } else {
         document.getElementById("countdown-display").innerHTML = '<div class="countdown-live">🎉 TOURNAMENT IS LIVE! 🎉</div>';
       }
