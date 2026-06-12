@@ -2819,7 +2819,10 @@ async function settleYesterdayBets(todayYmd) {
     .filter((bet) => bet.status === "active")
     .forEach((bet) => {
       const match = state.data.matches.find((entry) => entry.id === bet.matchId);
-      if (!match || !match.result || match.status !== "final" || match.day > todayYmd) return;
+      // Only settle matches explicitly marked "final" with a result — that guard
+      // is sufficient; removing the day check avoids missing UTC+N matches whose
+      // day string is "tomorrow" in PDT (e.g. 02:00 UTC = June 12 UTC = June 11 PDT).
+      if (!match || !match.result || match.status !== "final") return;
 
       const user = state.data.users.find((entry) => entry.id === bet.userId);
       if (!user) return;
