@@ -2570,7 +2570,7 @@ async function runDailyRefresh(force, skipApiFetch = false) {
   await loadAllBetsFromSupabase();
   
   console.log("💰 Settling completed bets...");
-  settleYesterdayBets(todayKey);
+  await settleYesterdayBets(todayKey);
   
   console.log("🏆 Recomputing leaderboard...");
   recomputeLeaderboard();
@@ -2789,7 +2789,7 @@ function getBetMultiplierForPick(match, pick, storedOdds) {
   return clampBetMultiplier(storedOdds);
 }
 
-function settleYesterdayBets(todayYmd) {
+async function settleYesterdayBets(todayYmd) {
   const yesterday = shiftYmd(todayYmd, -1);
 
   // Only generate random results when NOT connected to Supabase (offline/dev mode).
@@ -2812,6 +2812,8 @@ function settleYesterdayBets(todayYmd) {
   // immediately when the admin runs the refresh, rather than waiting until tomorrow.
   const adminUser = state.data.users.find((u) => u.handle?.toLowerCase() === "admin");
   let adminCoinsEarned = 0;
+  const syncPromises = [];
+  const winnerUserMap = new Map(); // userId -> user, for deduped user syncs
 
   state.data.bets
     .filter((bet) => bet.status === "active")
@@ -2839,29 +2841,39 @@ function settleYesterdayBets(todayYmd) {
         bet.outcome = "win";
         bet.delta = pointsEarned;
         bet.settledAt = new Date().toISOString();
-        
-        // Sync updated user to Supabase
-        syncUserToSupabase(user);
+        winnerUserMap.set(user.id, user);
       } else {
         bet.status = "settled";
         bet.outcome = "loss";
         bet.delta = -bet.wager;
         bet.settledAt = new Date().toISOString();
       }
-      
+
       // Admin earns the wagered coins for every settled bet (house collects all wagers)
       adminCoinsEarned += Number(bet.wager || 0);
 
-      // Sync settled bet to Supabase
-      syncBetToSupabase(bet);
+      // Collect DB sync promise for this bet
+      syncPromises.push(syncBetToSupabase(bet));
     });
 
-  // Credit admin with coins earned from settled bets
+  // Sync all winning users to DB
+  for (const user of winnerUserMap.values()) {
+    syncPromises.push(syncUserToSupabase(user));
+  }
+
+  // Credit admin with coins earned from settled bets and sync
   if (adminUser && adminCoinsEarned > 0) {
     adminUser.coinsEarnedFromTeams = (adminUser.coinsEarnedFromTeams || 0) + adminCoinsEarned;
     adminUser.balance = calculateUserBalanceFromBets(adminUser);
-    syncUserToSupabase(adminUser);
+    syncPromises.push(syncUserToSupabase(adminUser));
     console.log(`Admin earned ${adminCoinsEarned} coins from settled bets`);
+  }
+
+  // Await all DB writes so the next loadAllBetsFromSupabase sees the settled state
+  if (syncPromises.length > 0) {
+    console.log(`⏳ Awaiting ${syncPromises.length} DB sync(s) for settled bets/users...`);
+    await Promise.allSettled(syncPromises);
+    console.log(`✅ All settlement DB syncs complete`);
   }
 }
 
