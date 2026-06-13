@@ -2829,10 +2829,12 @@ async function settleYesterdayBets(todayYmd) {
 
       const chosenWon = match.result.winner === bet.pick;
       if (match.result.winner === "draw") {
+        // Draws refund the wager — coins go back to the player
         bet.status = "settled";
-        bet.outcome = "loss";
-        bet.delta = -bet.wager;
+        bet.outcome = "refund";
+        bet.delta = 0;
         bet.settledAt = new Date().toISOString();
+        // Do NOT add this bet's wager to adminCoinsEarned — coins are returned
       } else if (chosenWon) {
         const multiplier = getBetMultiplierForPick(match, bet.pick, bet.odds);
         const pointsEarned = Math.round(bet.wager * multiplier);
@@ -2853,7 +2855,10 @@ async function settleYesterdayBets(todayYmd) {
       }
 
       // Admin earns the wagered coins for every settled bet (house collects all wagers)
-      adminCoinsEarned += Number(bet.wager || 0);
+      // Draws are excluded — coins are refunded to the player, not collected by the house
+      if (bet.outcome !== "refund") {
+        adminCoinsEarned += Number(bet.wager || 0);
+      }
 
       // Collect DB sync promise for this bet
       syncPromises.push(syncBetToSupabase(bet));
@@ -4622,7 +4627,7 @@ function getUserBaseCoins(user) {
 
 function calculateUserBalanceFromBets(user, bets = state.data.bets) {
   const totalWagered = (bets || [])
-    .filter((bet) => bet.userId === user.id)
+    .filter((bet) => bet.userId === user.id && bet.outcome !== "refund")
     .reduce((sum, bet) => sum + Number(bet.wager || 0), 0);
 
   return Math.max(0, Math.floor(getUserBaseCoins(user) - totalWagered));
