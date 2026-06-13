@@ -1,4 +1,4 @@
-const APP_CACHE = "miller-clash-shell-v3";
+const APP_CACHE = "miller-clash-shell-v4";
 const APP_SHELL = [
   "./",
   "./index.html",

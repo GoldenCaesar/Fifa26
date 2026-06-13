@@ -3980,12 +3980,13 @@ function renderHistory() {
   userBets.forEach((bet) => {
     const match = state.data.matches.find((entry) => entry.id === bet.matchId);
     const row = document.createElement("div");
-    row.className = `history-row ${bet.outcome}`;
+    row.className = `history-row ${bet.outcome === "refund" ? "pending" : bet.outcome}`;
     const versus = match ? `${match.home} vs ${match.away}` : "Unknown match";
 
     let result = "Pending";
     if (bet.outcome === "win") result = `+${Math.round(bet.delta)} points earned`;
     if (bet.outcome === "loss") result = `-${bet.wager} coins lost`;
+    if (bet.outcome === "refund") result = `${bet.wager} coins refunded (draw)`;
 
     const textSpan = document.createElement("span");
     const versusHtml = match ? `${teamHtml(match.home)} vs ${teamHtml(match.away)}` : "Unknown match";
