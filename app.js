@@ -3282,18 +3282,18 @@ function renderUpcomingMatches() {
   host.innerHTML = "";
   
   const now = new Date();
-  const todayYmd = toYmd(now, state.config.timezone);
+  const nowMs = now.getTime();
   
-  // Get upcoming matches (today or future, that are open for betting)
+  // Get upcoming matches: kickoff hasn't happened yet, regardless of status or date string
   const upcomingMatches = state.data.matches
-    .filter(m => m.day >= todayYmd && m.status === "open")
+    .filter(m => {
+      if (!m.day || !m.time) return false;
+      if (m.status === "final") return false;
+      const kickoff = new Date(`${m.day}T${m.time}:00Z`);
+      return kickoff.getTime() > nowMs;
+    })
     .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
     .slice(0, 5); // Show next 5 matches
-  
-  if (upcomingMatches.length === 0) {
-    host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming matches available for betting.</div>';
-    return;
-  }
   
   upcomingMatches.forEach(match => {
     const card = document.createElement("div");
@@ -3573,11 +3573,16 @@ function renderMatches() {
   if (activeCountEl) activeCountEl.textContent = activeBetCount;
 
   const now = new Date();
-  const todayYmd = toYmd(now, state.config.timezone);
+  const nowMs = now.getTime();
   
-  // Get next 5 upcoming matches (same as home page)
+  // Get next 5 upcoming matches: kickoff hasn't happened yet, regardless of status or date string
   const upcomingMatches = state.data.matches
-    .filter(m => m.day >= todayYmd && m.status === "open")
+    .filter(m => {
+      if (!m.day || !m.time) return false;
+      if (m.status === "final") return false;
+      const kickoff = new Date(`${m.day}T${m.time}:00Z`);
+      return kickoff.getTime() > nowMs;
+    })
     .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
     .slice(0, 5); // Show next 5 matches
   
@@ -3608,7 +3613,11 @@ function renderMatches() {
         </div>
       `;
 
-      if (match.status === "open") {
+      // Only show bet form if kickoff hasn't happened yet (real-time check, independent of status)
+      const kickoffMs = new Date(`${match.day}T${match.time}:00Z`).getTime();
+      const bettingOpen = nowMs < kickoffMs;
+
+      if (bettingOpen) {
         const activeCount = state.data.bets.filter(
           (entry) =>
             entry.userId === user.id &&
