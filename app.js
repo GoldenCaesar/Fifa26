@@ -2733,8 +2733,12 @@ async function refreshScheduleWindow(now) {
 }
 
 function lockTodaysMatches(todayYmd) {
+  const now = Date.now();
   state.data.matches.forEach((match) => {
-    if (match.day === todayYmd && match.status === "open") {
+    if (match.status !== "open") return;
+    // Lock any match whose UTC kickoff time has passed, OR whose UTC date is today-or-earlier
+    const kickoff = new Date(`${match.day}T${match.time}:00Z`);
+    if (now >= kickoff.getTime() || match.day <= todayYmd) {
       match.status = "locked";
     }
   });
@@ -3756,6 +3760,13 @@ function placeBet(match, pick, odds, wagerAmount) {
   const user = getCurrentUser();
   if (!user) return;
 
+  // Hard guard: block bets if the match has already kicked off
+  const kickoff = new Date(`${match.day}T${match.time}:00Z`);
+  if (Date.now() >= kickoff.getTime() || match.status !== "open") {
+    alert("Betting is closed for this match.");
+    return;
+  }
+
   const activeCount = state.data.bets.filter(
     (entry) =>
       entry.userId === user.id &&
@@ -3813,15 +3824,15 @@ function placeBet(match, pick, odds, wagerAmount) {
 }
 
 async function canCancelBet(bet) {
-  const todayYmd = toYmd(new Date(), state.config.timezone);
   const match = state.data.matches.find(m => m.id === bet.matchId);
 
   if (!match) {
     return { ok: false, reason: "Match data unavailable. Please refresh and try again." };
   }
 
-  // Cancellations are only allowed before the match day begins.
-  if (match.day <= todayYmd || match.status !== "open") {
+  // Block cancellation once the match has kicked off (compare UTC kickoff to now)
+  const kickoff = new Date(`${match.day}T${match.time}:00Z`);
+  if (Date.now() >= kickoff.getTime() || match.status !== "open") {
     return { ok: false, reason: "This bet can no longer be cancelled." };
   }
 
@@ -3972,8 +3983,9 @@ function renderHistory() {
     textSpan.innerHTML = `Wagered ${escapeHtml(String(bet.wager))} coins on ${teamHtml(bet.pick)} in ${versusHtml} → ${escapeHtml(result)}`;
     row.appendChild(textSpan);
     
-    // Add delete button for active bets if match is not today
-    if (bet.status === "active" && match && match.day > todayYmd) {
+    // Add delete button for active bets if match hasn't kicked off yet
+    const kickoff = match ? new Date(`${match.day}T${match.time}:00Z`) : null;
+    if (bet.status === "active" && kickoff && Date.now() < kickoff.getTime()) {
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "btn btn-danger";
       deleteBtn.style.cssText = "padding:4px 12px;font-size:12px;margin-left:10px";
