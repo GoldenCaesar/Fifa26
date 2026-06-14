@@ -2189,8 +2189,8 @@ function syncUserRankingsWithTeamStats(options = {}) {
     // Calculate team points from rankings
     const newTeamPoints = recalcScore(user);
     
-    // Calculate coins earned from teams (10% of team points, rounded up)
-    const newCoinsFromTeams = Math.ceil(newTeamPoints * 0.1);
+    // Calculate coins earned from teams (1 coin per team point)
+    const newCoinsFromTeams = newTeamPoints;
     const nextUserState = {
       ...user,
       coinsEarnedFromTeams: newCoinsFromTeams
