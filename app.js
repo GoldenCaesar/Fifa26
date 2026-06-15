@@ -870,6 +870,7 @@ async function loginByHandle(handle, rawPassword = "") {
           user.dbId = dbUser.id;
           user.balance = dbUser.balance ?? 100;
           user.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? 0;
+          user.manualPointsAdjustment = dbUser.manual_points_adjustment ?? 0;
           user.totalScore = dbUser.total_score ?? 0;
           user.teamPoints = dbUser.team_points ?? 0;
           user.betPoints = dbUser.bet_points ?? 0;
@@ -886,6 +887,7 @@ async function loginByHandle(handle, rawPassword = "") {
           user.dbId = dbUser.id;
           user.balance = dbUser.balance ?? 100;
           user.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? 0;
+          user.manualPointsAdjustment = dbUser.manual_points_adjustment ?? 0;
           user.totalScore = dbUser.total_score ?? 0;
           user.teamPoints = dbUser.team_points ?? 0;
           user.betPoints = dbUser.bet_points ?? 0;
@@ -1059,6 +1061,21 @@ function renderAdminPanel() {
         <button class="btn btn-secondary admin-remove-coins-btn" data-userid="${user.id}" title="Remove coins from ${user.handle}">
           Remove Coins
         </button>
+        <input
+          class="admin-points-input"
+          data-userid="${user.id}"
+          type="number"
+          min="1"
+          step="1"
+          value="25"
+          aria-label="Points to grant ${user.handle}"
+        />
+        <button class="btn admin-give-points-btn" data-userid="${user.id}" title="Add bet points to ${user.handle}">
+          Give Points
+        </button>
+        <button class="btn btn-secondary admin-remove-points-btn" data-userid="${user.id}" title="Remove bet points from ${user.handle}">
+          Remove Points
+        </button>
         <button class="btn btn-secondary admin-loginas-btn" data-userid="${user.id}" ${isAdminUser ? "disabled title='Cannot impersonate admin'" : ""}>
           ${isViewingAsThisUser ? "Viewing" : "Login As"}
         </button>
@@ -1130,6 +1147,64 @@ function renderAdminPanel() {
       }
 
       setStatus("settings-status", `Removed ${amount} coins from ${user.handle}.`);
+    });
+  });
+
+  list.querySelectorAll(".admin-give-points-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const userId = btn.dataset.userid;
+      const user = state.data.users.find((u) => u.id === userId);
+      if (!user) return;
+
+      const input = list.querySelector(`.admin-points-input[data-userid="${userId}"]`);
+      const rawAmount = Number(input?.value || 0);
+      const amount = Math.floor(rawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        alert("Enter a valid positive point amount.");
+        return;
+      }
+
+      user.manualPointsAdjustment = getUserManualPointsAdjustment(user) + amount;
+      recomputeUserBetDerivedFields(user);
+      persistState();
+      renderApp();
+
+      const syncedDbId = await syncUserToSupabase(user);
+      if (syncedDbId && !user.dbId) {
+        user.dbId = syncedDbId;
+        persistState();
+      }
+
+      setStatus("settings-status", `Added ${amount} points to ${user.handle}.`);
+    });
+  });
+
+  list.querySelectorAll(".admin-remove-points-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const userId = btn.dataset.userid;
+      const user = state.data.users.find((u) => u.id === userId);
+      if (!user) return;
+
+      const input = list.querySelector(`.admin-points-input[data-userid="${userId}"]`);
+      const rawAmount = Number(input?.value || 0);
+      const amount = Math.floor(rawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        alert("Enter a valid positive point amount.");
+        return;
+      }
+
+      user.manualPointsAdjustment = getUserManualPointsAdjustment(user) - amount;
+      recomputeUserBetDerivedFields(user);
+      persistState();
+      renderApp();
+
+      const syncedDbId = await syncUserToSupabase(user);
+      if (syncedDbId && !user.dbId) {
+        user.dbId = syncedDbId;
+        persistState();
+      }
+
+      setStatus("settings-status", `Removed ${amount} points from ${user.handle}.`);
     });
   });
 
@@ -1249,7 +1324,7 @@ function recomputeUserBetDerivedFields(user) {
     .filter((bet) => bet.outcome === "win")
     .reduce((sum, bet) => sum + Number(bet.delta || 0), 0);
 
-  user.betPoints = Math.max(0, Math.round(totalBetPoints));
+  user.betPoints = Math.max(0, Math.round(totalBetPoints) + getUserManualPointsAdjustment(user));
   user.totalScore = (user.teamPoints || 0) + user.betPoints;
   user.balance = Math.max(0, Math.floor(getUserBaseCoins(user) - totalWagered));
 }
@@ -1630,6 +1705,7 @@ async function syncUserToSupabase(user) {
     const userData = {
       balance: user.balance ?? 100,
       manual_coin_adjustment: getUserManualCoinAdjustment(user),
+      manual_points_adjustment: getUserManualPointsAdjustment(user),
       total_score: user.totalScore ?? 0,
       team_points: user.teamPoints ?? 0,
       bet_points: user.betPoints ?? 0,
@@ -1789,6 +1865,7 @@ async function loadUsersFromSupabase() {
           existingUser.dbId = dbUser.id;
           existingUser.balance = dbUser.balance ?? existingUser.balance;
           existingUser.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? existingUser.manualCoinAdjustment ?? 0;
+          existingUser.manualPointsAdjustment = dbUser.manual_points_adjustment ?? existingUser.manualPointsAdjustment ?? 0;
           existingUser.totalScore = dbUser.total_score ?? existingUser.totalScore;
           existingUser.teamPoints = dbUser.team_points ?? existingUser.teamPoints;
           existingUser.betPoints = dbUser.bet_points ?? existingUser.betPoints;
@@ -1805,6 +1882,7 @@ async function loadUsersFromSupabase() {
           newUser.dbId = dbUser.id; // Store database UUID
           newUser.balance = dbUser.balance ?? 100;
           newUser.manualCoinAdjustment = dbUser.manual_coin_adjustment ?? 0;
+          newUser.manualPointsAdjustment = dbUser.manual_points_adjustment ?? 0;
           newUser.totalScore = dbUser.total_score ?? 0;
           newUser.teamPoints = dbUser.team_points ?? 0;
           newUser.betPoints = dbUser.bet_points ?? 0;
@@ -2177,6 +2255,7 @@ function syncUserRankingsWithTeamStats(options = {}) {
     if (user.betPoints === undefined) user.betPoints = 0;
     if (user.coinsEarnedFromTeams === undefined) user.coinsEarnedFromTeams = 0;
     if (user.manualCoinAdjustment === undefined) user.manualCoinAdjustment = 0;
+    if (user.manualPointsAdjustment === undefined) user.manualPointsAdjustment = 0;
     
     user.rankings.forEach(ranking => {
       const teamStats = state.data.teamStats[ranking.team];
@@ -2840,7 +2919,15 @@ async function settleYesterdayBets(todayYmd) {
         bet.settledAt = new Date().toISOString();
         // Do NOT add this bet's wager to adminCoinsEarned — coins are returned
       } else if (chosenWon) {
-        const multiplier = getBetMultiplierForPick(match, bet.pick, bet.odds);
+        // Always use the odds locked in at bet-placement time.
+        // After a match finishes, sportsbook APIs no longer return odds data
+        // (odds_home / odds_away become 0 / null), which would cause
+        // getBetMultiplierForPick to recompute a multiplier of 0 and award
+        // zero points to winning bettors.  bet.odds is the authoritative
+        // value — it was validated and stored when the wager was placed.
+        const multiplier = Number(bet.odds) > 0
+          ? Number(bet.odds)
+          : getBetMultiplierForPick(match, bet.pick, bet.odds);
         const pointsEarned = Math.round(bet.wager * multiplier);
 
         // Winning bets add bet points directly to leaderboard score.
@@ -4641,6 +4728,10 @@ function recalcScore(user) {
 
 function getUserManualCoinAdjustment(user) {
   return Number(user?.manualCoinAdjustment || 0);
+}
+
+function getUserManualPointsAdjustment(user) {
+  return Number(user?.manualPointsAdjustment || 0);
 }
 
 function getUserBaseCoins(user) {
