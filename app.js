@@ -455,7 +455,8 @@ function startCountdown() {
   function restoreDigitDisplay() {
     // Restore the digit countdown HTML if it was replaced by a live/message banner
     if (!document.getElementById("days")) {
-      document.getElementById("countdown-display").innerHTML =
+      const displayEl = document.getElementById("countdown-display");
+      displayEl.innerHTML =
         '<div class="countdown-unit"><span id="days" class="countdown-number">--</span><span class="countdown-text">Days</span></div>' +
         '<div class="countdown-separator">:</div>' +
         '<div class="countdown-unit"><span id="hours" class="countdown-number">--</span><span class="countdown-text">Hours</span></div>' +
@@ -463,6 +464,10 @@ function startCountdown() {
         '<div class="countdown-unit"><span id="minutes" class="countdown-number">--</span><span class="countdown-text">Min</span></div>' +
         '<div class="countdown-separator">:</div>' +
         '<div class="countdown-unit"><span id="seconds" class="countdown-number">--</span><span class="countdown-text">Sec</span></div>';
+      displayEl.onclick = null;
+      displayEl.style.cursor = "default";
+      displayEl.title = "";
+      delete displayEl.dataset.liveMatchId;
     }
   }
 
@@ -480,12 +485,28 @@ function startCountdown() {
       return elapsed >= 0 && elapsed < MATCH_DURATION_MS;
     });
 
+    const displayEl = document.getElementById("countdown-display");
+
     if (liveMatch) {
-      const label = escapeHtml(liveMatch.group || liveMatch.round || "");
-      const home = escapeHtml(liveMatch.home);
-      const away = escapeHtml(liveMatch.away);
-      document.getElementById("countdown-display").innerHTML =
-        `<div class="countdown-live">⚽ ${home} vs ${away}${label ? " • " + label : ""} • LIVE</div>`;
+      if (displayEl.dataset.liveMatchId !== liveMatch.id) {
+        const label = escapeHtml(liveMatch.group || liveMatch.round || "");
+        const home = escapeHtml(liveMatch.home);
+        const away = escapeHtml(liveMatch.away);
+        displayEl.innerHTML =
+          `<div class="countdown-live">⚽ ${home} vs ${away}${label ? " • " + label : ""} • LIVE</div>`;
+        displayEl.dataset.liveMatchId = liveMatch.id;
+
+        displayEl.style.cursor = "pointer";
+        displayEl.title = "Click to search live score on Google";
+        displayEl.onclick = () => {
+          const matchDate = liveMatch._date || new Date(`${liveMatch.day}T${liveMatch.time}:00Z`);
+          const searchDate = matchDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          const searchQuery = `${liveMatch.home} vs ${liveMatch.away} ${searchDate} live score`;
+          const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+          window.open(googleUrl, '_blank');
+        };
+      }
+
       const labelEl = document.getElementById("countdown-label");
       if (labelEl) labelEl.textContent = "Now Playing";
       return;
@@ -495,8 +516,13 @@ function startCountdown() {
     const nextMatch = matches.find(m => m._date > now);
 
     if (!nextMatch) {
-      document.getElementById("countdown-display").innerHTML =
-        '<div class="countdown-live">🏆 TOURNAMENT COMPLETE! 🏆</div>';
+      if (displayEl.dataset.liveMatchId !== "COMPLETE") {
+        displayEl.innerHTML = '<div class="countdown-live">🏆 TOURNAMENT COMPLETE! 🏆</div>';
+        displayEl.dataset.liveMatchId = "COMPLETE";
+        displayEl.onclick = null;
+        displayEl.style.cursor = "default";
+        displayEl.title = "";
+      }
       const labelEl = document.getElementById("countdown-label");
       if (labelEl) labelEl.textContent = "FIFA World Cup 2026";
       return;
