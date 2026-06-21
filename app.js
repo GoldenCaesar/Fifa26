@@ -3278,73 +3278,79 @@ function renderBracket() {
   
   console.log(`Knockout matches: ${knockoutMatches.length}`);
   
-  // If no knockout matches yet, create TBD placeholder structure
-  if (knockoutMatches.length === 0) {
-    knockoutMatches.push(
-      // Round of 16 (16 matches)
-      ...Array.from({ length: 16 }, (_, i) => ({
-        id: `r16-tbd-${i}`,
-        round: "Round of 16",
+  const expectedCounts = {
+    "Round of 32": 16,
+    "Round of 16": 8,
+    "Quarterfinals": 4,
+    "Semifinals": 2,
+    "Third Place": 1,
+    "Final": 1
+  };
+
+  const defaultDates = {
+    "Round of 32": "2026-06-28",
+    "Round of 16": "2026-07-04",
+    "Quarterfinals": "2026-07-09",
+    "Semifinals": "2026-07-14",
+    "Third Place": "2026-07-18",
+    "Final": "2026-07-19"
+  };
+
+  const rounds = {
+    r32: [],
+    r16: [],
+    qf: [],
+    sf: [],
+    bronze: [],
+    final: []
+  };
+
+  const roundKeyMap = {
+    "Round of 32": "r32",
+    "Round of 16": "r16",
+    "Quarterfinals": "qf",
+    "Semifinals": "sf",
+    "Third Place": "bronze",
+    "Final": "final"
+  };
+
+  // Group existing knockout matches by round
+  knockoutMatches.forEach(m => {
+    const key = roundKeyMap[m.round];
+    if (key) {
+      rounds[key].push(m);
+    }
+  });
+
+  // Sort existing matches by date/time
+  Object.keys(rounds).forEach(key => {
+    rounds[key].sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
+  });
+
+  // Pad each round with TBD matches up to the expected count
+  Object.keys(expectedCounts).forEach(roundName => {
+    const key = roundKeyMap[roundName];
+    const expected = expectedCounts[roundName];
+    const currentCount = rounds[key].length;
+
+    for (let i = currentCount; i < expected; i++) {
+      rounds[key].push({
+        id: `${key}-tbd-${i}`,
+        round: roundName,
         home: "TBD",
         away: "TBD",
         status: "scheduled",
-        day: "2026-06-29"
-      })),
-      // Quarterfinals (8 matches)
-      ...Array.from({ length: 8 }, (_, i) => ({
-        id: `qf-tbd-${i}`,
-        round: "Quarterfinals",
-        home: "TBD",
-        away: "TBD",
-        status: "scheduled",
-        day: "2026-07-05"
-      })),
-      // Semifinals (4 matches)
-      ...Array.from({ length: 4 }, (_, i) => ({
-        id: `sf-tbd-${i}`,
-        round: "Semifinals",
-        home: "TBD",
-        away: "TBD",
-        status: "scheduled",
-        day: "2026-07-09"
-      })),
-      // Third Place (1 match)
-      {
-        id: "bronze-tbd",
-        round: "Third Place",
-        home: "TBD",
-        away: "TBD",
-        status: "scheduled",
-        day: "2026-07-13"
-      },
-      // Final (1 match)
-      {
-        id: "final-tbd",
-        round: "Final",
-        home: "TBD",
-        away: "TBD",
-        status: "scheduled",
-        day: "2026-07-14"
-      }
-    );
-  }
-  
+        day: defaultDates[roundName]
+      });
+    }
+  });
+
   // Add explanation for TBD teams
   const explanation = document.createElement("div");
   explanation.className = "inline-note";
   explanation.style.cssText = "margin-bottom: 16px; text-align: center;";
   explanation.innerHTML = "🏆 Teams marked <strong>TBD</strong> (To Be Determined) will be filled in as the group stage concludes and teams qualify for the knockout rounds.";
   wrap.appendChild(explanation);
-  
-  // Organize by round
-  const rounds = {
-    r32: knockoutMatches.filter(m => m.round === "Round of 32"),
-    r16: knockoutMatches.filter(m => m.round === "Round of 16"),
-    qf: knockoutMatches.filter(m => m.round === "Quarterfinals"),
-    sf: knockoutMatches.filter(m => m.round === "Semifinals"),
-    bronze: knockoutMatches.filter(m => m.round === "Third Place"),
-    final: knockoutMatches.filter(m => m.round === "Final")
-  };
   
   console.log('Rounds:', {
     r32: rounds.r32.length,
@@ -4452,6 +4458,29 @@ async function fetchMatchesForDay(dayYmd) {
   return matches;
 }
 
+
+function getRoundForMatch(dbMatch) {
+  if (dbMatch.tournament_group) {
+    const tg = dbMatch.tournament_group.toLowerCase();
+    if (tg.includes("group")) return "Group Stage";
+    if (tg.includes("round of 32") || tg.includes("1/16")) return "Round of 32";
+    if (tg.includes("round of 16") || tg.includes("1/8")) return "Round of 16";
+    if (tg.includes("quarter") || tg.includes("1/4")) return "Quarterfinals";
+    if (tg.includes("semi") || tg.includes("1/2")) return "Semifinals";
+    if (tg.includes("third") || tg.includes("3rd")) return "Third Place";
+    if (tg.includes("final")) return "Final";
+  }
+
+  // Fallback to schedule template
+  const schedule = generateWorldCup2026Schedule();
+  const templateMatch = schedule.find(m => m.day === dbMatch.day && m.time === dbMatch.kickoff_time);
+  if (templateMatch) {
+    return templateMatch.round;
+  }
+
+  return null;
+}
+
 function convertDbMatchToApp(dbMatch) {
   const resHome = dbMatch.result_home != null ? Number(dbMatch.result_home) : null;
   const resAway = dbMatch.result_away != null ? Number(dbMatch.result_away) : null;
@@ -4462,6 +4491,7 @@ function convertDbMatchToApp(dbMatch) {
     home: dbMatch.home_team,
     away: dbMatch.away_team,
     group: dbMatch.tournament_group || null,
+    round: getRoundForMatch(dbMatch),
     odds: {
       home: Number(dbMatch.odds_home),
       away: Number(dbMatch.odds_away)
