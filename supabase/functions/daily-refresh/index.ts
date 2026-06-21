@@ -189,7 +189,7 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
       odds_home: homeOutcome?.price || 2.0,
       odds_away: awayOutcome?.price || 2.0,
       status: "open",
-      tournament_group: null
+      tournament_group: getRoundForMatch({ day: dayYmd, kickoff_time: kickoffTime, tournament_group: null })
     };
     matchMap.set(item.id, row);
   }
@@ -224,7 +224,7 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
           away_team: item.away_team,
           odds_home: 2.0,
           odds_away: 2.0,
-          tournament_group: null
+          tournament_group: getRoundForMatch({ day: dayYmd, kickoff_time: kickoffTime, tournament_group: null })
         };
 
         if (isCompleted && homeGoals !== null && awayGoals !== null) {
@@ -284,7 +284,7 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
       odds_home: 2.0,
       odds_away: 2.0,
       status: isFinal ? "final" : "open",
-      tournament_group: item.league?.round || null
+      tournament_group: item.league?.round || getRoundForMatch({ day: dayYmd, kickoff_time: kickoffTime, tournament_group: null })
     };
 
     if (isFinal && Number.isFinite(homeGoals) && Number.isFinite(awayGoals)) {
@@ -464,4 +464,34 @@ function shiftYmd(ymd: string, shift: number): string {
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/\s+/g, "-");
+}
+
+
+function getRoundForMatch(dbMatch: any): string | null {
+  if (!dbMatch || !dbMatch.day) return null;
+  if (dbMatch.tournament_group) {
+    const tg = dbMatch.tournament_group.toLowerCase();
+    if (tg.includes("group")) return "Group Stage";
+    if (tg.includes("round of 32") || tg.includes("1/16")) return "Round of 32";
+    if (tg.includes("round of 16") || tg.includes("1/8")) return "Round of 16";
+    if (tg.includes("quarter") || tg.includes("1/4")) return "Quarterfinals";
+    if (tg.includes("semi") || tg.includes("1/2")) return "Semifinals";
+    if (tg.includes("third") || tg.includes("3rd")) return "Third Place";
+    if (tg.includes("final")) return "Final";
+  }
+
+
+  // Fallback to date ranges
+  const dateStr = dbMatch.day;
+  if (dateStr >= "2026-06-28" && dateStr <= "2026-07-04") {
+      if (dateStr === "2026-07-04") return "Round of 16";
+      return "Round of 32";
+  }
+  if (dateStr >= "2026-07-05" && dateStr <= "2026-07-07") return "Round of 16";
+  if (dateStr >= "2026-07-09" && dateStr <= "2026-07-12") return "Quarterfinals";
+  if (dateStr >= "2026-07-14" && dateStr <= "2026-07-15") return "Semifinals";
+  if (dateStr === "2026-07-18") return "Third Place";
+  if (dateStr === "2026-07-19") return "Final";
+
+  return null;
 }
