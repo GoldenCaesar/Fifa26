@@ -4463,20 +4463,24 @@ function getRoundForMatch(dbMatch) {
   if (dbMatch.tournament_group) {
     const tg = dbMatch.tournament_group.toLowerCase();
     if (tg.includes("group")) return "Group Stage";
-    if (tg.includes("round of 32") || tg.includes("1/16")) return "Round of 32";
-    if (tg.includes("round of 16") || tg.includes("1/8")) return "Round of 16";
+    if (tg.includes("round of 32") || tg.includes("1/16") || tg.includes("32")) return "Round of 32";
+    if (tg.includes("round of 16") || tg.includes("1/8") || tg.includes("16")) return "Round of 16";
     if (tg.includes("quarter") || tg.includes("1/4")) return "Quarterfinals";
     if (tg.includes("semi") || tg.includes("1/2")) return "Semifinals";
     if (tg.includes("third") || tg.includes("3rd")) return "Third Place";
     if (tg.includes("final")) return "Final";
   }
 
-  // Fallback to schedule template
-  const schedule = generateWorldCup2026Schedule();
-  const templateMatch = schedule.find(m => m.day === dbMatch.day && m.time === dbMatch.kickoff_time);
-  if (templateMatch) {
-    return templateMatch.round;
-  }
+  const day = dbMatch.day;
+  if (!day) return null;
+
+  if (day >= "2026-06-11" && day <= "2026-06-27") return "Group Stage";
+  if (day >= "2026-06-28" && day <= "2026-07-03") return "Round of 32";
+  if (day >= "2026-07-04" && day <= "2026-07-07") return "Round of 16";
+  if (day >= "2026-07-08" && day <= "2026-07-12") return "Quarterfinals";
+  if (day >= "2026-07-13" && day <= "2026-07-15") return "Semifinals";
+  if (day === "2026-07-18") return "Third Place";
+  if (day >= "2026-07-19") return "Final";
 
   return null;
 }
