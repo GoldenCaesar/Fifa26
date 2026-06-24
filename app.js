@@ -3452,7 +3452,7 @@ function renderUpcomingMatches() {
         <span>${dateStr}</span>
         <span style="color:var(--muted)">&bull;</span>
         <span>${pstTime} PST</span>
-        ${match.round || match.group ? `<span style="color:var(--muted)">&bull;</span><span>${match.round || match.group}</span>` : ''}
+        ${match.group || match.round ? `<span style="color:var(--muted)">&bull;</span><span>${match.group || match.round}</span>` : ''}
       </div>
     `;
     
