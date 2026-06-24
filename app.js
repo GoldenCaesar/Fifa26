@@ -3314,35 +3314,54 @@ function renderBracket() {
     "Final": "final"
   };
 
-  // Group existing knockout matches by round
-  knockoutMatches.forEach(m => {
+  // Separate into real matches and purely TBD matches
+  const realMatches = knockoutMatches.filter(m => m.home !== "TBD" || m.away !== "TBD");
+  const tbdMatches = knockoutMatches.filter(m => m.home === "TBD" && m.away === "TBD");
+
+  // Group real matches by round
+  realMatches.forEach(m => {
     const key = roundKeyMap[m.round];
     if (key) {
       rounds[key].push(m);
     }
   });
 
-  // Sort existing matches by date/time
-  Object.keys(rounds).forEach(key => {
-    rounds[key].sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
-  });
-
-  // Pad each round with TBD matches up to the expected count
+  // Pad each round with TBD matches to reach expected count
   Object.keys(expectedCounts).forEach(roundName => {
     const key = roundKeyMap[roundName];
     const expected = expectedCounts[roundName];
-    const currentCount = rounds[key].length;
 
-    for (let i = currentCount; i < expected; i++) {
+    // Find existing TBD matches for this round, sort them chronologically
+    const availableTbds = tbdMatches
+      .filter(m => m.round === roundName)
+      .sort((a, b) => ((a.day || "") + (a.time || "")).localeCompare((b.day || "") + (b.time || "")));
+
+    const currentCount = rounds[key].length;
+    const needed = expected - currentCount;
+
+    // Push available TBD matches from the database (preserves actual scheduled dates)
+    for (let i = 0; i < needed && i < availableTbds.length; i++) {
+      rounds[key].push(availableTbds[i]);
+    }
+
+    // If still needed (fallback), generate generic padding matches
+    const stillNeeded = expected - rounds[key].length;
+    for (let i = 0; i < stillNeeded; i++) {
       rounds[key].push({
-        id: `${key}-tbd-${i}`,
+        id: `${key}-tbd-fallback-${i}`,
         round: roundName,
         home: "TBD",
         away: "TBD",
         status: "scheduled",
-        day: defaultDates[roundName]
+        day: defaultDates[roundName],
+        time: "00:00"
       });
     }
+  });
+
+  // Sort combined matches by date/time
+  Object.keys(rounds).forEach(key => {
+    rounds[key].sort((a, b) => ((a.day || "") + (a.time || "")).localeCompare((b.day || "") + (b.time || "")));
   });
 
   // Add explanation for TBD teams
