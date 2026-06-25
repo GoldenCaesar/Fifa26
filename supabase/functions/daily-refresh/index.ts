@@ -251,9 +251,10 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
 }
 
 async function fetchFromApiFootballWorldCup(): Promise<any[]> {
-  // API-Football World Cup 2026 league ID is 1 (FIFA World Cup)
+  // API-Football World Cup league ID is 1 (FIFA World Cup)
   // Fetch all fixtures for the tournament
-  const url = "https://v3.football.api-sports.io/fixtures?league=1&season=2026";
+  // Since the free tier only goes up to 2024, we pull 2022 data and shift dates/rounds
+  const url = "https://v3.football.api-sports.io/fixtures?league=1&season=2022";
   const response = await fetch(url, {
     headers: { "x-apisports-key": API_FOOTBALL_KEY }
   });
@@ -262,6 +263,11 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
 
   return (data.response || []).map((item: any, idx: number) => {
     const fixtureDate = new Date(item.fixture?.date || new Date());
+
+    // Shift the date from 2022 to 2026 (add 1299 days)
+    // 2022-11-20 -> 2026-06-11
+    fixtureDate.setDate(fixtureDate.getDate() + 1299);
+
     const dayYmd = fixtureDate.toISOString().split("T")[0];
     const hours = fixtureDate.getUTCHours();
     const minutes = fixtureDate.getUTCMinutes();
@@ -275,6 +281,19 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
     const homeGoals = item.goals?.home;
     const awayGoals = item.goals?.away;
 
+    // Normalize round name
+    let roundName = item.league?.round || "";
+    if (roundName.includes("Group Stage")) {
+        // e.g., "Group Stage - 1"
+        roundName = "Group Stage";
+    } else if (roundName === "Quarter-finals") {
+        roundName = "Quarterfinals";
+    } else if (roundName === "Semi-finals") {
+        roundName = "Semifinals";
+    } else if (roundName === "3rd Place Final") {
+        roundName = "Third Place";
+    }
+
     const row: any = {
       id: `wc2026_af_${item.fixture?.id || idx}`,
       day: dayYmd,
@@ -284,7 +303,7 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
       odds_home: 2.0,
       odds_away: 2.0,
       status: isFinal ? "final" : "open",
-      tournament_group: item.league?.round || getRoundForMatch({ day: dayYmd, kickoff_time: kickoffTime, tournament_group: null })
+      tournament_group: roundName || getRoundForMatch({ day: dayYmd, kickoff_time: kickoffTime, tournament_group: null })
     };
 
     if (isFinal && Number.isFinite(homeGoals) && Number.isFinite(awayGoals)) {
