@@ -23,6 +23,8 @@ create table if not exists matches (
   status text not null,
   result_home int,
   result_away int,
+  result_home_penalties int,
+  result_away_penalties int,
   winner text,
   tournament_group text,
   updated_at timestamptz not null default now()

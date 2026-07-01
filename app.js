@@ -2872,6 +2872,13 @@ function getBetMultiplierForPick(match, pick, storedOdds) {
   return clampBetMultiplier(storedOdds);
 }
 
+function isKnockoutMatch(match) {
+  const roundLabel = String(match?.round || match?.group || "").toLowerCase();
+  if (!roundLabel) return false;
+  if (roundLabel.includes("group")) return false;
+  return /(round of|quarter|semi|third place|final|knockout)/.test(roundLabel);
+}
+
 async function settleYesterdayBets(todayYmd) {
   const yesterday = shiftYmd(todayYmd, -1);
 
@@ -2899,7 +2906,7 @@ async function settleYesterdayBets(todayYmd) {
   const winnerUserMap = new Map(); // userId -> user, for deduped user syncs
 
   state.data.bets
-    .filter((bet) => bet.status === "active")
+    .filter((bet) => bet.status === "active" || (bet.status === "settled" && bet.outcome === "refund"))
     .forEach((bet) => {
       const match = state.data.matches.find((entry) => entry.id === bet.matchId);
       // Only settle matches explicitly marked "final" with a result — that guard
@@ -2907,11 +2914,18 @@ async function settleYesterdayBets(todayYmd) {
       // day string is "tomorrow" in PDT (e.g. 02:00 UTC = June 12 UTC = June 11 PDT).
       if (!match || !match.result || match.status !== "final") return;
 
+      const winner = match.result.winner;
+      if (!winner) return;
+
+      // A knockout fixture cannot end in a true draw. If API data is incomplete
+      // (level score but no PK winner yet), keep bets unresolved instead of refunding.
+      if (winner === "draw" && isKnockoutMatch(match)) return;
+
       const user = state.data.users.find((entry) => entry.id === bet.userId);
       if (!user) return;
 
-      const chosenWon = match.result.winner === bet.pick;
-      if (match.result.winner === "draw") {
+      const chosenWon = winner === bet.pick;
+      if (winner === "draw") {
         // Draws refund the wager — coins go back to the player
         bet.status = "settled";
         bet.outcome = "refund";
@@ -3449,10 +3463,10 @@ function createBracketMatch(match) {
   
   const homeTeam = match.home || "TBD";
   const awayTeam = match.away || "TBD";
-  const homeScore = match.result?.home ?? "";
-  const awayScore = match.result?.away ?? "";
   const isComplete = match.status === "final";
   const winner = match.result?.winner;
+  const homeScore = isComplete ? formatTeamScore(match.result, "home") : "";
+  const awayScore = isComplete ? formatTeamScore(match.result, "away") : "";
   
   card.innerHTML = `
     <div class="bracket-team ${winner === homeTeam ? 'winner' : ''}">
@@ -4429,6 +4443,9 @@ async function fetchMatchesForDay(dayYmd) {
 function convertDbMatchToApp(dbMatch) {
   const resHome = dbMatch.result_home != null ? Number(dbMatch.result_home) : null;
   const resAway = dbMatch.result_away != null ? Number(dbMatch.result_away) : null;
+  const resHomePens = dbMatch.result_home_penalties != null ? Number(dbMatch.result_home_penalties) : null;
+  const resAwayPens = dbMatch.result_away_penalties != null ? Number(dbMatch.result_away_penalties) : null;
+  const hasResult = resHome != null || resAway != null || dbMatch.winner;
   return {
     id: dbMatch.id,
     day: dbMatch.day,
@@ -4443,10 +4460,12 @@ function convertDbMatchToApp(dbMatch) {
     status: dbMatch.status,
     resultHome: resHome,
     resultAway: resAway,
-    result: dbMatch.winner ? {
+    result: hasResult ? {
       winner: dbMatch.winner,
       home: resHome,
       away: resAway,
+      homePenalties: resHomePens,
+      awayPenalties: resAwayPens,
       homeScore: resHome,
       awayScore: resAway
     } : null
@@ -4648,8 +4667,20 @@ function drawGrid(ctx, width, height) {
 function formatStatus(match) {
   if (match.status === "open") return "Open";
   if (match.status === "locked") return "Locked";
-  if (match.status === "final" && match.result) return `${match.result.home} - ${match.result.away}`;
+  if (match.status === "final" && match.result) return formatMatchScore(match.result);
   return match.status;
+}
+
+function formatTeamScore(result, side) {
+  const goals = result?.[side];
+  const penalties = side === "home" ? result?.homePenalties : result?.awayPenalties;
+  if (!Number.isFinite(goals)) return "";
+  if (Number.isFinite(penalties)) return `${goals}(${penalties})`;
+  return String(goals);
+}
+
+function formatMatchScore(result) {
+  return `${formatTeamScore(result, "home")} - ${formatTeamScore(result, "away")}`;
 }
 
 function getCurrentUser() {

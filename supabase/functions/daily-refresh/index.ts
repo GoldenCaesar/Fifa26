@@ -37,6 +37,18 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
+function isKnockoutRoundLabel(roundLabel: string | null | undefined): boolean {
+  const label = String(roundLabel || "").toLowerCase();
+  if (!label) return false;
+  if (label.includes("group")) return false;
+  return /(round of|quarter|semi|third place|final|knockout)/.test(label);
+}
+
+function isKnockoutByDate(dayYmd: string): boolean {
+  // Group stage runs through 2026-06-27 in this project schedule.
+  return dayYmd >= "2026-06-28";
+}
+
 serve(async (req) => {
   console.log("=== Edge Function Called ===");
   console.log("Method:", req.method);
@@ -231,8 +243,11 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
           existing.status = "final";
           existing.result_home = homeGoals;
           existing.result_away = awayGoals;
+          existing.result_home_penalties = null;
+          existing.result_away_penalties = null;
           if (homeGoals > awayGoals) existing.winner = item.home_team;
           else if (awayGoals > homeGoals) existing.winner = item.away_team;
+          else if (isKnockoutByDate(dayYmd)) existing.winner = null;
           else existing.winner = "draw";
         } else if (!existing.status || existing.status === "open") {
           existing.status = isCompleted ? "final" : "open";
@@ -245,6 +260,54 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
     }
   } catch (err) {
     console.warn("Could not fetch scores (non-fatal):", err);
+  }
+
+  // Enrich with API-Football final outcomes when available.
+  // This helps resolve PK winners that may appear as tied scores in Odds API data.
+  if (API_FOOTBALL_KEY) {
+    try {
+      const apiFootballMatches = await fetchFromApiFootballWorldCup();
+      const fixtureToApiFootball = new Map<string, any>();
+
+      for (const row of apiFootballMatches) {
+        const key = buildFixtureKey(row.day, row.home_team, row.away_team);
+        if (!fixtureToApiFootball.has(key)) {
+          fixtureToApiFootball.set(key, row);
+        }
+      }
+
+      for (const row of matchMap.values()) {
+        const key = buildFixtureKey(row.day, row.home_team, row.away_team);
+        const enriched = fixtureToApiFootball.get(key);
+        if (!enriched) continue;
+
+        if (row.status !== "final" && enriched.status === "final") {
+          row.status = "final";
+        }
+
+        if (Number.isFinite(enriched.result_home) && Number.isFinite(enriched.result_away)) {
+          row.result_home = enriched.result_home;
+          row.result_away = enriched.result_away;
+        }
+
+        if (Number.isFinite(enriched.result_home_penalties) && Number.isFinite(enriched.result_away_penalties)) {
+          row.result_home_penalties = enriched.result_home_penalties;
+          row.result_away_penalties = enriched.result_away_penalties;
+        }
+
+        if (enriched.winner) {
+          row.winner = enriched.winner;
+        } else if (row.winner == null && isKnockoutByDate(row.day)) {
+          row.winner = null;
+        }
+
+        if (!row.tournament_group && enriched.tournament_group) {
+          row.tournament_group = enriched.tournament_group;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not enrich with API-Football outcomes (non-fatal):", err);
+    }
   }
 
   return Array.from(matchMap.values());
@@ -274,6 +337,7 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
     const isFinal = ["FT", "AET", "PEN"].includes(fixtureStatus);
     const homeGoals = item.goals?.home;
     const awayGoals = item.goals?.away;
+    const roundLabel = item.league?.round || null;
 
     const row: any = {
       id: `wc2026_af_${item.fixture?.id || idx}`,
@@ -284,15 +348,30 @@ async function fetchFromApiFootballWorldCup(): Promise<any[]> {
       odds_home: 2.0,
       odds_away: 2.0,
       status: isFinal ? "final" : "open",
-      tournament_group: item.league?.round || null
+      tournament_group: roundLabel
     };
 
     if (isFinal && Number.isFinite(homeGoals) && Number.isFinite(awayGoals)) {
+      const homePenalty = item.score?.penalty?.home;
+      const awayPenalty = item.score?.penalty?.away;
+      const hasPenaltyScores = Number.isFinite(homePenalty) && Number.isFinite(awayPenalty);
+      const homeWonFlag = item.teams?.home?.winner === true;
+      const awayWonFlag = item.teams?.away?.winner === true;
+
       row.result_home = homeGoals;
       row.result_away = awayGoals;
+      row.result_home_penalties = hasPenaltyScores ? Number(homePenalty) : null;
+      row.result_away_penalties = hasPenaltyScores ? Number(awayPenalty) : null;
+
       if (homeGoals > awayGoals) row.winner = home;
       else if (awayGoals > homeGoals) row.winner = away;
-      else row.winner = "draw";
+      else if (hasPenaltyScores) {
+        if (homePenalty > awayPenalty) row.winner = home;
+        else if (awayPenalty > homePenalty) row.winner = away;
+        else row.winner = isKnockoutRoundLabel(roundLabel) ? null : "draw";
+      } else if (homeWonFlag) row.winner = home;
+      else if (awayWonFlag) row.winner = away;
+      else row.winner = isKnockoutRoundLabel(roundLabel) ? null : "draw";
     }
 
     return row;
