@@ -274,15 +274,32 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
     matchMap.set(item.id, row);
   }
 
-  // Fetch scores for recently completed matches (daysFrom=5 ensures coverage for older games)
+  // Fetch scores for recently completed matches.
+  // Some Odds API plans reject larger daysFrom values with 422, so retry with
+  // conservative values until one succeeds.
   try {
-    const scoresUrl = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/scores/?apiKey=${encodeURIComponent(
-      ODDS_API_KEY
-    )}&daysFrom=5`;
-    const scoresResponse = await fetch(scoresUrl);
-    if (scoresResponse.ok) {
-      const scoresData = await scoresResponse.json();
-      console.log(`Scores API returned ${scoresData.length} matches`);
+    const scoreLookbackCandidates = [3, 1, null];
+    let scoresData: any[] | null = null;
+
+    for (const daysFrom of scoreLookbackCandidates) {
+      const scoresUrl = daysFrom == null
+        ? `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/scores/?apiKey=${encodeURIComponent(ODDS_API_KEY)}`
+        : `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/scores/?apiKey=${encodeURIComponent(ODDS_API_KEY)}&daysFrom=${daysFrom}`;
+
+      const scoresResponse = await fetch(scoresUrl);
+      if (scoresResponse.ok) {
+        scoresData = await scoresResponse.json();
+        const lookbackLabel = daysFrom == null ? "default" : String(daysFrom);
+        console.log(`Scores API returned ${scoresData.length} matches (daysFrom=${lookbackLabel})`);
+        break;
+      }
+
+      const errText = await scoresResponse.text();
+      const lookbackLabel = daysFrom == null ? "default" : String(daysFrom);
+      console.warn(`Scores API returned status ${scoresResponse.status} for daysFrom=${lookbackLabel}: ${errText}`);
+    }
+
+    if (scoresData) {
       for (const item of scoresData) {
         const isCompleted = item.completed === true;
         const commenceDate = new Date(item.commence_time);
@@ -346,7 +363,7 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
         matchMap.set(item.id, existing);
       }
     } else {
-      console.warn(`Scores API returned status ${scoresResponse.status} - skipping scores`);
+      console.warn("Scores API failed for all lookback attempts - skipping scores");
     }
   } catch (err) {
     console.warn("Could not fetch scores (non-fatal):", err);
