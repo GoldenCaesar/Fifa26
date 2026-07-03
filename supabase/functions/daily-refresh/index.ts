@@ -65,6 +65,24 @@ function getRoundForMatchByDate(dayYmd: string, kickoffTime: string): string | n
   return null; // group stage
 }
 
+function parseNullableScore(raw: any): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function findTeamScoreEntry(scores: any[], teamName: string): any | null {
+  if (!Array.isArray(scores) || scores.length === 0) return null;
+  const exact = scores.find((s: any) => String(s?.name || "") === teamName);
+  if (exact) return exact;
+
+  const normalizedTeam = normalizeFixtureTeamName(teamName);
+  const normalized = scores.find(
+    (s: any) => normalizeFixtureTeamName(String(s?.name || "")) === normalizedTeam
+  );
+  return normalized || null;
+}
+
 serve(async (req) => {
   console.log("=== Edge Function Called ===");
   console.log("Method:", req.method);
@@ -264,10 +282,18 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
         const minutes = commenceDate.getUTCMinutes();
         const kickoffTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 
-        const homeScore = item.scores?.find((s: any) => s.name === item.home_team);
-        const awayScore = item.scores?.find((s: any) => s.name === item.away_team);
-        const homeGoals = homeScore ? Number(homeScore.score) : null;
-        const awayGoals = awayScore ? Number(awayScore.score) : null;
+        const scoreEntries = Array.isArray(item.scores) ? item.scores : [];
+        let homeScore = findTeamScoreEntry(scoreEntries, item.home_team);
+        let awayScore = findTeamScoreEntry(scoreEntries, item.away_team);
+
+        // Fallback for providers that return two scores but slightly mismatched names.
+        if ((!homeScore || !awayScore) && scoreEntries.length === 2) {
+          homeScore = homeScore || scoreEntries[0];
+          awayScore = awayScore || scoreEntries[1];
+        }
+
+        const homeGoals = parseNullableScore(homeScore?.score);
+        const awayGoals = parseNullableScore(awayScore?.score);
 
         const tournamentGroup = getRoundForMatchByDate(dayYmd, kickoffTime);
         // For matches that came through the odds step, reuse that entry (which has real odds).

@@ -2625,9 +2625,10 @@ async function runDailyRefresh(force, skipApiFetch = false) {
 
   console.log("🔄 Running daily refresh...");
   
-  // Check if we need to fetch fresh data from API (only once per day at midnight).
-  // When skipApiFetch is true we always load from the existing DB rows — no edge-function call.
-  const needsApiFetch = !skipApiFetch && await shouldFetchFromApi(todayKey);
+  // For manual/admin forced refreshes, always pull fresh data immediately.
+  // For automatic daily runs, keep the once-per-day cache gate via shouldFetchFromApi.
+  // When skipApiFetch is true we always load from existing DB rows.
+  const needsApiFetch = !skipApiFetch && (force || await shouldFetchFromApi(todayKey));
   if (needsApiFetch) {
     console.log("📡 Fetching fresh match data from Odds API via Edge Function...");
     await callEdgeFunctionRefresh();
