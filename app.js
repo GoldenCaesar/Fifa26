@@ -4440,19 +4440,54 @@ async function fetchMatchesForDay(dayYmd) {
   return matches;
 }
 
+// Derives the knockout round name from a DB match row. Uses tournament_group when
+// it contains a round label; otherwise falls back to date-based inference.
+function getRoundForMatch(dbMatch) {
+  const tg = String(dbMatch.tournament_group || "").toLowerCase().trim();
+  if (tg) {
+    if (tg.includes("group")) return null; // group stage entry like "Group A"
+    if (tg.includes("round of 32") || tg.includes("1/16")) return "Round of 32";
+    if (tg.includes("round of 16") || tg.includes("1/8")) return "Round of 16";
+    if (tg.includes("quarter")) return "Quarterfinals";
+    if (tg.includes("semi")) return "Semifinals";
+    if (tg.includes("third") || tg.includes("bronze")) return "Third Place";
+    if (tg === "final" || tg.includes("world cup final")) return "Final";
+  }
+  // Derive round from match date when tournament_group is absent
+  const day = String(dbMatch.day || "");
+  if (!day) return null;
+  if (day >= "2026-07-19") return "Final";
+  if (day >= "2026-07-18") return "Third Place";
+  if (day >= "2026-07-14") return "Semifinals";
+  if (day >= "2026-07-09") return "Quarterfinals";
+  if (day >= "2026-07-04") return "Round of 16";
+  if (day >= "2026-06-29") return "Round of 32";
+  if (day === "2026-06-28") {
+    // Group J matchday 3 kicks off at 02:00 UTC; Round of 32 starts at 19:00 UTC
+    const time = String(dbMatch.kickoff_time || "00:00");
+    return time >= "19:00" ? "Round of 32" : null;
+  }
+  return null; // group stage (June 11 – June 27)
+}
+
 function convertDbMatchToApp(dbMatch) {
   const resHome = dbMatch.result_home != null ? Number(dbMatch.result_home) : null;
   const resAway = dbMatch.result_away != null ? Number(dbMatch.result_away) : null;
   const resHomePens = dbMatch.result_home_penalties != null ? Number(dbMatch.result_home_penalties) : null;
   const resAwayPens = dbMatch.result_away_penalties != null ? Number(dbMatch.result_away_penalties) : null;
   const hasResult = resHome != null || resAway != null || dbMatch.winner;
+  const round = getRoundForMatch(dbMatch);
+  // Only carry tournament_group as "group" when it's actually a group-stage label
+  const tg = dbMatch.tournament_group || null;
+  const group = (tg && !round) ? tg : null;
   return {
     id: dbMatch.id,
     day: dbMatch.day,
     time: dbMatch.kickoff_time,
     home: dbMatch.home_team,
     away: dbMatch.away_team,
-    group: dbMatch.tournament_group || null,
+    group,
+    round,
     odds: {
       home: Number(dbMatch.odds_home),
       away: Number(dbMatch.odds_away)

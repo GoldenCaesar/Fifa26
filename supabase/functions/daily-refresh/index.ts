@@ -49,6 +49,22 @@ function isKnockoutByDate(dayYmd: string): boolean {
   return dayYmd >= "2026-06-28";
 }
 
+// Derive the tournament round label from match date and kickoff time.
+// Mirrors the same logic in app.js so the DB stores a useful tournament_group.
+function getRoundForMatchByDate(dayYmd: string, kickoffTime: string): string | null {
+  if (dayYmd >= "2026-07-19") return "Final";
+  if (dayYmd >= "2026-07-18") return "Third Place";
+  if (dayYmd >= "2026-07-14") return "Semifinals";
+  if (dayYmd >= "2026-07-09") return "Quarterfinals";
+  if (dayYmd >= "2026-07-04") return "Round of 16";
+  if (dayYmd >= "2026-06-29") return "Round of 32";
+  if (dayYmd === "2026-06-28") {
+    // Group J matchday 3 at 02:00 UTC; Round of 32 opener at 19:00 UTC
+    return kickoffTime >= "19:00" ? "Round of 32" : null;
+  }
+  return null; // group stage
+}
+
 serve(async (req) => {
   console.log("=== Edge Function Called ===");
   console.log("Method:", req.method);
@@ -126,8 +142,10 @@ serve(async (req) => {
       return existingId ? { ...match, id: existingId } : match;
     });
 
-    // Upsert matches without deleting them, preserving existing bets and records!
-    const { error } = await supabase.from("matches").upsert(allMatches, { onConflict: "id" });
+    // Upsert in two phases: Phase 1 strips penalty columns so the upsert succeeds even
+    // if the migration adding result_home_penalties / result_away_penalties hasn't been run.
+    const coreRows = allMatches.map(({ result_home_penalties, result_away_penalties, ...rest }: any) => rest);
+    const { error } = await supabase.from("matches").upsert(coreRows, { onConflict: "id" });
     if (error) {
       console.error("Database insert error:", error);
       return new Response(JSON.stringify({ 
@@ -137,6 +155,23 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
+    }
+
+    // Phase 2: persist penalty shootout scores when the migration has been applied.
+    const penaltyRows = allMatches
+      .filter((m: any) => m.result_home_penalties != null || m.result_away_penalties != null)
+      .map((m: any) => ({
+        id: m.id,
+        result_home_penalties: m.result_home_penalties,
+        result_away_penalties: m.result_away_penalties
+      }));
+    if (penaltyRows.length > 0) {
+      const { error: penError } = await supabase.from("matches").upsert(penaltyRows, { onConflict: "id" });
+      if (penError) {
+        console.warn("Could not store penalty scores (run migration_add_penalty_scores.sql):", penError.message);
+      } else {
+        console.log(`Stored penalty scores for ${penaltyRows.length} match(es)`);
+      }
     }
 
     // Update cache metadata
@@ -201,16 +236,16 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
       odds_home: homeOutcome?.price || 2.0,
       odds_away: awayOutcome?.price || 2.0,
       status: "open",
-      tournament_group: null
+      tournament_group: getRoundForMatchByDate(dayYmd, kickoffTime)
     };
     matchMap.set(item.id, row);
   }
 
-  // Fetch scores for recently completed matches (last 3 days covers same-day finishes)
+  // Fetch scores for recently completed matches (daysFrom=5 ensures coverage for older games)
   try {
     const scoresUrl = `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/scores/?apiKey=${encodeURIComponent(
       ODDS_API_KEY
-    )}&daysFrom=3`;
+    )}&daysFrom=5`;
     const scoresResponse = await fetch(scoresUrl);
     if (scoresResponse.ok) {
       const scoresData = await scoresResponse.json();
@@ -228,6 +263,7 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
         const homeGoals = homeScore ? Number(homeScore.score) : null;
         const awayGoals = awayScore ? Number(awayScore.score) : null;
 
+        const tournamentGroup = getRoundForMatchByDate(dayYmd, kickoffTime);
         const existing = matchMap.get(item.id) || {
           id: `wc2026_${item.id}`,
           day: dayYmd,
@@ -236,10 +272,15 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
           away_team: item.away_team,
           odds_home: 2.0,
           odds_away: 2.0,
-          tournament_group: null
+          tournament_group: tournamentGroup
         };
+        // Always keep tournament_group up to date when we have data
+        if (!existing.tournament_group && tournamentGroup) {
+          existing.tournament_group = tournamentGroup;
+        }
 
         if (isCompleted && homeGoals !== null && awayGoals !== null) {
+          // Only mark final when we actually have score data.
           existing.status = "final";
           existing.result_home = homeGoals;
           existing.result_away = awayGoals;
@@ -249,9 +290,12 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
           else if (awayGoals > homeGoals) existing.winner = item.away_team;
           else if (isKnockoutByDate(dayYmd)) existing.winner = null;
           else existing.winner = "draw";
-        } else if (!existing.status || existing.status === "open") {
-          existing.status = isCompleted ? "final" : "open";
+        } else if (!isCompleted && (!existing.status || existing.status === "open")) {
+          // Still ongoing — keep as open.
+          existing.status = "open";
         }
+        // If completed but scores not yet in API: leave status unchanged so we don't
+        // permanently stamp "final" with null scores.
 
         matchMap.set(item.id, existing);
       }
