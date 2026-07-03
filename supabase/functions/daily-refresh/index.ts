@@ -264,15 +264,18 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
         const awayGoals = awayScore ? Number(awayScore.score) : null;
 
         const tournamentGroup = getRoundForMatchByDate(dayYmd, kickoffTime);
+        // For matches that came through the odds step, reuse that entry (which has real odds).
+        // For scores-only matches (completed, no longer in the odds feed), create a minimal
+        // object WITHOUT odds_home / odds_away so the upsert leaves existing DB odds intact.
         const existing = matchMap.get(item.id) || {
           id: `wc2026_${item.id}`,
           day: dayYmd,
           kickoff_time: kickoffTime,
           home_team: item.home_team,
           away_team: item.away_team,
-          odds_home: 2.0,
-          odds_away: 2.0,
           tournament_group: tournamentGroup
+          // odds intentionally omitted — ON CONFLICT DO UPDATE only sets listed columns,
+          // so existing real odds are preserved and never overwritten with a 2.0 default.
         };
         // Always keep tournament_group up to date when we have data
         if (!existing.tournament_group && tournamentGroup) {
