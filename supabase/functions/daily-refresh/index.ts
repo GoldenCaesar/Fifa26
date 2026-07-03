@@ -67,6 +67,21 @@ function getRoundForMatchByDate(dayYmd: string, kickoffTime: string): string | n
 
 function parseNullableScore(raw: any): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    // Accept provider formats like "1", "1.0", "1 (3)", "1(3)", "FT 1".
+    const direct = Number(trimmed);
+    if (Number.isFinite(direct)) return direct;
+
+    const match = trimmed.match(/-?\d+(?:\.\d+)?/);
+    if (match) {
+      const extracted = Number(match[0]);
+      if (Number.isFinite(extracted)) return extracted;
+    }
+    return null;
+  }
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
@@ -316,6 +331,11 @@ async function fetchAllWorldCupMatches(): Promise<any[]> {
           else if (awayGoals > homeGoals) existing.winner = item.away_team;
           else if (isKnockoutByDate(dayYmd)) existing.winner = null;
           else existing.winner = "draw";
+        } else if (isCompleted) {
+          console.log(
+            `Completed match missing score values: ${item.home_team} vs ${item.away_team} ` +
+            `(${dayYmd} ${kickoffTime}) rawScores=${JSON.stringify(item.scores || [])}`
+          );
         } else if (!isCompleted && (!existing.status || existing.status === "open")) {
           // Still ongoing — keep as open.
           existing.status = "open";
