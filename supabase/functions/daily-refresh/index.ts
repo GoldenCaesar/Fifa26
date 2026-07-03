@@ -137,9 +137,15 @@ serve(async (req) => {
       });
     }
 
-    allMatches = allMatches.map((match) => {
+    allMatches = allMatches.map((match: any) => {
       const existingId = existingMatchIds.get(buildFixtureKey(match.day, match.home_team, match.away_team));
-      return existingId ? { ...match, id: existingId } : match;
+      if (existingId) {
+        return { ...match, id: existingId };
+      }
+      // No existing DB row for this fixture — it will be INSERTed as a new row.
+      // odds_home / odds_away are NOT NULL in the schema, so we must provide defaults.
+      // Real odds from the odds-API step (if present in `match`) override these via spread.
+      return { odds_home: 2.0, odds_away: 2.0, ...match };
     });
 
     // Upsert in two phases: Phase 1 strips penalty columns so the upsert succeeds even
