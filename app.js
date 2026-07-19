@@ -3686,13 +3686,13 @@ function renderMatches() {
       if (m.status === "final") return false;
       const kickoff = new Date(`${m.day}T${m.time}:00Z`);
       if (kickoff.getTime() > nowMs) return true;
-      return adminOverrideLockedBetting && m.status === "locked";
+      return adminOverrideLockedBetting && kickoff.getTime() <= nowMs;
     })
     .sort((a, b) => {
       const aKickoff = new Date(`${a.day}T${a.time}:00Z`).getTime();
       const bKickoff = new Date(`${b.day}T${b.time}:00Z`).getTime();
-      const aLive = aKickoff <= nowMs && a.status === "locked";
-      const bLive = bKickoff <= nowMs && b.status === "locked";
+      const aLive = aKickoff <= nowMs && a.status !== "final";
+      const bLive = bKickoff <= nowMs && b.status !== "final";
       if (aLive !== bLive) return aLive ? -1 : 1;
       return (a.day + a.time).localeCompare(b.day + b.time);
     })
@@ -3727,7 +3727,7 @@ function renderMatches() {
 
       // In admin impersonation mode, allow bets on locked live fixtures.
       const kickoffMs = new Date(`${match.day}T${match.time}:00Z`).getTime();
-      const bettingOpen = nowMs < kickoffMs || (adminOverrideLockedBetting && match.status === "locked");
+      const bettingOpen = nowMs < kickoffMs || (adminOverrideLockedBetting && kickoffMs <= nowMs && match.status !== "final");
 
       if (bettingOpen) {
         const activeCount = state.data.bets.filter(
@@ -3854,7 +3854,7 @@ function renderMatches() {
             return;
           }
           placeBet(match, selected.pick, selected.odds, wagerAmount, {
-            allowLockedLiveBet: adminOverrideLockedBetting && match.status === "locked"
+            allowLockedLiveBet: adminOverrideLockedBetting && kickoffMs <= nowMs && match.status !== "final"
           });
         });
 
