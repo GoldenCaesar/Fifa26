@@ -3683,7 +3683,8 @@ function renderMatches() {
   const upcomingMatches = state.data.matches
     .filter(m => {
       if (!m.day || !m.time) return false;
-      if (m.status === "final") return false;
+      if (!adminOverrideLockedBetting && m.status === "final") return false;
+      if (adminOverrideLockedBetting && isMatchSettledForBetting(m)) return false;
       const kickoff = new Date(`${m.day}T${m.time}:00Z`);
       if (kickoff.getTime() > nowMs) return true;
       return adminOverrideLockedBetting && kickoff.getTime() <= nowMs;
@@ -3727,7 +3728,7 @@ function renderMatches() {
 
       // In admin impersonation mode, allow bets on locked live fixtures.
       const kickoffMs = new Date(`${match.day}T${match.time}:00Z`).getTime();
-      const bettingOpen = nowMs < kickoffMs || (adminOverrideLockedBetting && kickoffMs <= nowMs && match.status !== "final");
+      const bettingOpen = nowMs < kickoffMs || (adminOverrideLockedBetting && kickoffMs <= nowMs && !isMatchSettledForBetting(match));
 
       if (bettingOpen) {
         const activeCount = state.data.bets.filter(
@@ -3854,7 +3855,7 @@ function renderMatches() {
             return;
           }
           placeBet(match, selected.pick, selected.odds, wagerAmount, {
-            allowLockedLiveBet: adminOverrideLockedBetting && kickoffMs <= nowMs && match.status !== "final"
+            allowLockedLiveBet: adminOverrideLockedBetting && kickoffMs <= nowMs && !isMatchSettledForBetting(match)
           });
         });
 
@@ -3898,7 +3899,7 @@ function placeBet(match, pick, odds, wagerAmount, options = {}) {
     return;
   }
 
-  if (adminOverrideLockedBetting && match.status === "final") {
+  if (adminOverrideLockedBetting && isMatchSettledForBetting(match)) {
     alert("Betting is closed for this match.");
     return;
   }
@@ -3959,8 +3960,9 @@ function placeBet(match, pick, odds, wagerAmount, options = {}) {
   renderHomeGraph(true);
 }
 
-async function canCancelBet(bet) {
+async function canCancelBet(bet, options = {}) {
   const match = state.data.matches.find(m => m.id === bet.matchId);
+  const allowLockedLiveCancel = !!options.allowLockedLiveCancel;
 
   if (!match) {
     return { ok: false, reason: "Match data unavailable. Please refresh and try again." };
@@ -3968,7 +3970,7 @@ async function canCancelBet(bet) {
 
   // Block cancellation once the match has kicked off (compare UTC kickoff to now)
   const kickoff = new Date(`${match.day}T${match.time}:00Z`);
-  if (Date.now() >= kickoff.getTime() || match.status !== "open") {
+  if (!allowLockedLiveCancel && (Date.now() >= kickoff.getTime() || match.status !== "open")) {
     return { ok: false, reason: "This bet can no longer be cancelled." };
   }
 
@@ -3993,9 +3995,14 @@ async function canCancelBet(bet) {
   return { ok: true, reason: "" };
 }
 
-async function deleteBet(betId) {
+async function deleteBet(betId, options = {}) {
   const user = getCurrentUser();
   if (!user) return;
+
+  const allowLockedLiveCancel =
+    state.isAdmin &&
+    !!state.data.adminImpersonatingUserId &&
+    !!options.allowLockedLiveCancel;
 
   const betIndex = state.data.bets.findIndex(b => b.id === betId && b.userId === user.id);
   if (betIndex === -1) return;
@@ -4007,7 +4014,7 @@ async function deleteBet(betId) {
     return;
   }
 
-  const cancelCheck = await canCancelBet(bet);
+  const cancelCheck = await canCancelBet(bet, { allowLockedLiveCancel });
   if (!cancelCheck.ok) {
     alert(cancelCheck.reason);
     return;
@@ -4091,6 +4098,7 @@ function renderHistory() {
   const user = getCurrentUser();
   const host = document.getElementById("history-list");
   host.innerHTML = "";
+  const adminOverrideLockedCancel = state.isAdmin && !!state.data.adminImpersonatingUserId;
 
   const userBets = state.data.bets
     .filter((bet) => bet.userId === user.id)
@@ -4120,9 +4128,16 @@ function renderHistory() {
     textSpan.innerHTML = `Wagered ${escapeHtml(String(bet.wager))} coins on ${teamHtml(bet.pick)} in ${versusHtml} → ${escapeHtml(result)}`;
     row.appendChild(textSpan);
     
-    // Add delete button for active bets if match hasn't kicked off yet
+    // Add delete button for active bets. In admin "login as" mode, allow cancelling locked/live bets too.
     const kickoff = match ? new Date(`${match.day}T${match.time}:00Z`) : null;
-    if (bet.status === "active" && kickoff && Date.now() < kickoff.getTime()) {
+    const canShowCancel =
+      bet.status === "active" &&
+      kickoff &&
+      (
+        Date.now() < kickoff.getTime() ||
+        (adminOverrideLockedCancel && !isMatchSettledForBetting(match))
+      );
+    if (canShowCancel) {
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "btn btn-danger";
       deleteBtn.style.cssText = "padding:4px 12px;font-size:12px;margin-left:10px";
@@ -4130,7 +4145,9 @@ function renderHistory() {
       deleteBtn.title = "Cancel this bet and refund your coins";
       deleteBtn.addEventListener("click", () => {
         if (confirm(`Cancel bet of ${bet.wager} coins on ${bet.pick}? Your coins will be refunded.`)) {
-          deleteBet(bet.id);
+          deleteBet(bet.id, {
+            allowLockedLiveCancel: adminOverrideLockedCancel && !isMatchSettledForBetting(match)
+          });
         }
       });
       row.appendChild(deleteBtn);
@@ -4742,6 +4759,10 @@ function formatTeamScore(result, side) {
 
 function formatMatchScore(result) {
   return `${formatTeamScore(result, "home")} - ${formatTeamScore(result, "away")}`;
+}
+
+function isMatchSettledForBetting(match) {
+  return !!(match && match.status === "final" && match.result && match.result.winner);
 }
 
 function getCurrentUser() {
