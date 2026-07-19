@@ -3655,6 +3655,7 @@ function renderPlayers() {
 
 function renderMatches() {
   const user = getCurrentUser();
+  const adminOverrideLockedBetting = state.isAdmin && !!state.data.adminImpersonatingUserId;
   const host = document.getElementById("match-list");
   host.innerHTML = "";
   
@@ -3677,16 +3678,25 @@ function renderMatches() {
   const now = new Date();
   const nowMs = now.getTime();
   
-  // Get next 5 upcoming matches: kickoff hasn't happened yet, regardless of status or date string
+  // In normal mode we show the next 5 pre-kickoff fixtures.
+  // In admin "login as" mode we also show locked, in-progress fixtures.
   const upcomingMatches = state.data.matches
     .filter(m => {
       if (!m.day || !m.time) return false;
       if (m.status === "final") return false;
       const kickoff = new Date(`${m.day}T${m.time}:00Z`);
-      return kickoff.getTime() > nowMs;
+      if (kickoff.getTime() > nowMs) return true;
+      return adminOverrideLockedBetting && m.status === "locked";
     })
-    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
-    .slice(0, 5); // Show next 5 matches
+    .sort((a, b) => {
+      const aKickoff = new Date(`${a.day}T${a.time}:00Z`).getTime();
+      const bKickoff = new Date(`${b.day}T${b.time}:00Z`).getTime();
+      const aLive = aKickoff <= nowMs && a.status === "locked";
+      const bLive = bKickoff <= nowMs && b.status === "locked";
+      if (aLive !== bLive) return aLive ? -1 : 1;
+      return (a.day + a.time).localeCompare(b.day + b.time);
+    })
+    .slice(0, adminOverrideLockedBetting ? 12 : 5);
   
   if (upcomingMatches.length === 0) {
     host.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming matches available for betting.</div>';
@@ -3715,9 +3725,9 @@ function renderMatches() {
         </div>
       `;
 
-      // Only show bet form if kickoff hasn't happened yet (real-time check, independent of status)
+      // In admin impersonation mode, allow bets on locked live fixtures.
       const kickoffMs = new Date(`${match.day}T${match.time}:00Z`).getTime();
-      const bettingOpen = nowMs < kickoffMs;
+      const bettingOpen = nowMs < kickoffMs || (adminOverrideLockedBetting && match.status === "locked");
 
       if (bettingOpen) {
         const activeCount = state.data.bets.filter(
@@ -3843,7 +3853,9 @@ function renderMatches() {
             alert("You cannot wager more coins than your current balance.");
             return;
           }
-          placeBet(match, selected.pick, selected.odds, wagerAmount);
+          placeBet(match, selected.pick, selected.odds, wagerAmount, {
+            allowLockedLiveBet: adminOverrideLockedBetting && match.status === "locked"
+          });
         });
 
         card.appendChild(oddsRow);
@@ -3867,13 +3879,26 @@ function renderMatches() {
     });
 }
 
-function placeBet(match, pick, odds, wagerAmount) {
+function placeBet(match, pick, odds, wagerAmount, options = {}) {
   const user = getCurrentUser();
   if (!user) return;
 
+  const adminOverrideLockedBetting =
+    state.isAdmin &&
+    !!state.data.adminImpersonatingUserId &&
+    !!options.allowLockedLiveBet;
+
   // Hard guard: block bets if the match has already kicked off
   const kickoff = new Date(`${match.day}T${match.time}:00Z`);
-  if (Date.now() >= kickoff.getTime() || match.status !== "open") {
+  if (
+    !adminOverrideLockedBetting &&
+    (Date.now() >= kickoff.getTime() || match.status !== "open")
+  ) {
+    alert("Betting is closed for this match.");
+    return;
+  }
+
+  if (adminOverrideLockedBetting && match.status === "final") {
     alert("Betting is closed for this match.");
     return;
   }
